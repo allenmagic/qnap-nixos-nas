@@ -42,9 +42,10 @@ sops secrets/secrets.yaml                         # 编辑加密密钥（需要 
 ### Alpine 路由 VM
 
 - VM 本身**不在 NixOS 中声明**（需手动 `virt-install` 创建，见 `alpine-router/README.md`），NixOS 只负责打包和分发其配置。VM 镜像为 Alpine **3.24-stable**（virt ISO 3.24.1），virt-install 的 `--os-variant` 用 `alpinelinux3.23`（osinfo-db 尚无 3.24 条目，3.23 是最接近的）。
-- 路由配置在本仓库 `alpine-router/base/` 目录维护（最初从 nanopi-r3s-rootfs 导入，现已解耦）。构建时（`modules/virtualization/alpine-router.nix`）把 `base/` 目录 + 内嵌的 `install.sh` 打成 tarball，放入 `/etc/libvirt/alpine-router-deploy.tar.gz`。
-- `install.sh` 在 VM 内执行：装包、rsync 配置到 /etc、注册开机自启并立即启动/重启 OpenRC 服务。例外：网络接口配置不立即生效（`RESTART_NETWORK=yes` 才重启网络，或重启 VM）。默认 LAN IP 为 `192.168.8.1`（用 `LAN_IP` 环境变量覆盖，sed 替换）。
-- `alpine-router-deploy` 包装脚本：ping 检查 VM 在线 → scp tarball → ssh 执行 install.sh。脚本内 VM_IP 硬编码。
+- 路由配置在本仓库 `alpine-router/` 目录维护（最初从 nanopi-r3s-rootfs 导入，现已解耦），结构：`base/`（配置源）+ `install.sh`（主安装脚本）+ `lib/`（packages/network/service/secrets/check 组件）+ `scripts/network-watchdog.sh` + `package.list`（声明式包列表）+ `env.example`。构建时（`modules/virtualization/alpine-router.nix`）把这些文件打成 tarball 放入 `/etc/libvirt/alpine-router-deploy.tar.gz`，并用 postPatch 替换 `__XXX__` 占位符（base/ 配置、install.sh 网络默认值、tailscale config.json）。
+- `install.sh` 在 VM 内执行：装包（package.list）→ rsync 配置到 /etc → 网络配置（lib/network.sh）→ 服务注册与启动（lib/service.sh）→ 密钥注入（lib/secrets.sh）→ 完整性检查（lib/check.sh，失败会中止）。网络接口配置不立即生效（`RESTART_NETWORK=yes` 才重启网络，或重启 VM）。
+- 密钥经 env 文件注入：NAS 上 `/etc/libvirt/alpine-router.env`（模板 `env.example`，chmod 600）由 `alpine-router-deploy` scp 到 VM，install.sh 结束（含失败）即删除；密钥不进入部署包和 nix store。
+- `alpine-router-deploy` 包装脚本：ping 检查 VM 在线 → scp tarball → scp 可选 env 密钥文件 → ssh 解包执行 install.sh。VM_IP 来自模块常量。
 - 更新路由配置的完整流程：修改 `alpine-router/base/` → `nixos-rebuild switch`（生成新 tarball）→ `alpine-router-deploy`。
 - 系统 Web 管理通过 **Cockpit**（9090，`modules/services/cockpit.nix`），当前启用 `cockpit-machines` 插件（依赖 `virtualisation.libvirtd.dbus.enable`）；可按需加 podman/files/zfs 等插件。virt-manager/virt-viewer 等 GUI 工具已移除，命令行用 virsh/libguestfs。
 
@@ -63,7 +64,7 @@ sops secrets/secrets.yaml                         # 编辑加密密钥（需要 
 5. `disks.nix` 的 `boot.swraid.mdadmConf` 为空占位，首次安装需填入 `mdadm --detail --scan` 的输出。
 6. `modules/security/sops.nix` 中 `defaultSopsFile = ../../secrets/secrets.yaml` 是相对路径——移动该文件时必须同步改路径。
 7. **Cockpit 登录需要系统密码**：cockpit 本地登录走 PAM 密码认证，而 `nas` 用户 `hashedPassword = "!"`（`modules/users/nas-user.nix`）。要用 Cockpit 必须先给 nas（或专用用户）设系统密码：`mkpasswd -m sha-512` 生成哈希后填入。SSH 仍只允许密钥登录，不受影响。
-8. `alpine-router/base/` 中的 `__XXX__` 占位符（nftables vars、dnsmasq DHCP）在 **Nix 构建时替换**：`modules/virtualization/alpine-router.nix` 的 `postPatch`，网络参数常量在同文件 `let` 块中，**修改网段时必须与 `bridges.nix` 同步**。仍有 R3S 遗留待处理：`PROXY_SERVER_IP`、`local.d/` 的 LED/网卡调优脚本，详见 `alpine-router/base/README.md`。
+8. `alpine-router/` 中的 `__XXX__` 占位符（base/ 配置、install.sh 网络默认值、tailscale config.json）在 **Nix 构建时替换**（`modules/virtualization/alpine-router.nix` 的 postPatch），网络参数常量在同文件 `let` 块中，**修改网段时必须与 `bridges.nix` 同步**。R3S 遗留：`PROXY_SERVER_IP`（nftables vars 中被防火墙规则引用）、`local.d/99-hw-tweak.start`（R3S 网卡调优，VM 中无实际效果）。
 
 ## 代码风格
 

@@ -248,6 +248,11 @@ ssh root@192.168.8.1    # 用 setup-alpine 设的密码
 ## 6. 部署路由配置
 
 ```bash
+# （可选）配置部署密钥：Tailscale / Cloudflared
+sudo cp /etc/nixos/alpine-router/env.example /etc/libvirt/alpine-router.env
+sudo chmod 600 /etc/libvirt/alpine-router.env
+# 编辑填入 TAILSCALE_AUTH_KEY / CLOUDFLARED_TOKEN（不需要则跳过此步）
+
 # 在宿主机上执行（会提示输入 VM 的 root 密码）
 alpine-router-deploy
 

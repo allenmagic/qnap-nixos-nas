@@ -50,7 +50,12 @@
 │   ├── README.md                      # sops-nix 使用指南
 │   └── secrets.yaml                   # 加密的密钥文件（需手动创建）
 └── alpine-router/
-    ├── base/                          # Alpine 路由 VM 配置（构建时打包进部署 tarball）
+    ├── base/                          # Alpine 路由 VM 配置源（占位符构建时替换）
+    ├── lib/                           # install.sh 功能组件（装包/网络/服务/密钥/检查）
+    ├── scripts/network-watchdog.sh    # 网络看门狗运行时脚本
+    ├── install.sh                     # VM 内主安装脚本
+    ├── package.list                   # 声明式软件包列表
+    ├── env.example                    # 部署密钥模板（Tailscale/Cloudflared）
     └── README.md                      # Alpine Router VM 部署指南
 ```
 
@@ -189,7 +194,7 @@ sudo nixos-rebuild switch --rollback
 ### Alpine Router 配置更新
 
 ```bash
-# 在修改 alpine-router/base/ 配置后
+# 在修改 alpine-router/ 下配置后（base/、lib/、install.sh、package.list 等）
 sudo nixos-rebuild switch --flake .#default
 alpine-router-deploy
 

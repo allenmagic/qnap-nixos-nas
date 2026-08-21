@@ -23,6 +23,9 @@ secrets/.decrypted~*
 .DS_Store
 Thumbs.db
 
+# Alpine router deploy secrets (local copy, template is env.example)
+/alpine-router/.env
+
 # Temporary files
 *.tmp
 *.bak

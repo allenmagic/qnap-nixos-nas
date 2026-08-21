@@ -1,0 +1,30 @@
+# ============================================================
+# Alpine Linux 包列表（VM 路由环境）
+#
+# 语法：
+#   [pm] <package>                —— 包管理器安装（apk add）
+#   [dl@<url>] <binary_name>      —— 下载 URL 到 /usr/local/bin/<binary_name>
+#
+# 由 install.sh → lib/packages.sh 解析执行
+# ============================================================
+
+# ========== base ==========
+[pm] openssh
+[pm] chrony
+[pm] curl
+[pm] wget
+[pm] bash
+[pm] vim
+[pm] nano
+[pm] htop
+[pm] tcpdump
+[pm] iftop
+[pm] mtr
+[pm] rsync
+[pm] iptables
+[pm] ip6tables
+[pm] nftables
+[pm] iproute2
+[pm] dnsmasq
+[pm] tailscale
+[dl@https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64] cloudflared
