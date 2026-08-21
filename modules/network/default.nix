@@ -7,7 +7,7 @@
 
   # 基础网络配置
   networking = {
-    hostName = "ts564";
+    hostName = "allenmagic-nas";
     useDHCP = false;
     useNetworkd = true;
 

@@ -2,7 +2,7 @@
   description = "QNAP TS-564 NAS NixOS configuration with Alpine Router VM";
 
   inputs = {
-    # 使用当前稳定分支（NixOS 没有 LTS，只有 stable/unstable）
+    # 使用当前稳定分支
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
 
     # QNAP ITE8528 EC kernel module

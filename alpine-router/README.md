@@ -45,7 +45,7 @@ setup-alpine
 # - Hostname: alpine-router
 # - Network:
 #   - eth0: dhcp (WAN)
-#   - eth1: 192.168.10.1/24 (LAN)
+#   - eth1: 192.168.8.1/24 (LAN)
 # - Root password: 设置密码
 # - Timezone: Asia/Shanghai
 # - Proxy: none
@@ -68,8 +68,8 @@ reboot
 alpine-router-deploy
 
 # 或手动执行
-scp /etc/libvirt/alpine-router-deploy.tar.gz root@192.168.10.1:/root/
-ssh root@192.168.10.1 'cd /root && tar xzf alpine-router-deploy.tar.gz && sh install.sh'
+scp /etc/libvirt/alpine-router-deploy.tar.gz root@192.168.8.1:/root/
+ssh root@192.168.8.1 'cd /root && tar xzf alpine-router-deploy.tar.gz && sh install.sh'
 ```
 
 ### 4. 验证配置
@@ -79,7 +79,7 @@ ssh root@192.168.10.1 'cd /root && tar xzf alpine-router-deploy.tar.gz && sh ins
 alpine-router-shell
 
 # 或
-ssh root@192.168.10.1
+ssh root@192.168.8.1
 
 # 检查服务状态
 rc-status
@@ -122,13 +122,13 @@ br-wan ━━━ eth0 (Alpine VM WAN)
               │
               │ NAT/路由/防火墙
               │
-           eth1 (Alpine VM LAN: 192.168.10.1)
+           eth1 (Alpine VM LAN: 192.168.8.1)
               │
 br-lan ━━━━━━┫
   │           │
-  │           └─ NixOS 宿主 (192.168.10.2)
+  │           └─ NixOS 宿主 (192.168.8.2)
   │
-  └─ 内网设备 (192.168.10.0/24)
+  └─ 内网设备 (192.168.8.0/24)
 ```
 
 ## 更新配置
@@ -140,7 +140,7 @@ br-lan ━━━━━━┫
 nix flake lock --update-input alpine-router-configs
 
 # 2. 重新构建 NixOS（生成新的部署包）
-sudo nixos-rebuild switch --flake .#ts564
+sudo nixos-rebuild switch --flake .#default
 
 # 3. 部署到 Alpine VM
 alpine-router-deploy
@@ -172,7 +172,7 @@ ip link show br-lan
 alpine-router-shell
 ip addr
 ping -c 3 8.8.8.8  # 测试 WAN
-ping -c 3 192.168.10.2  # 测试 LAN
+ping -c 3 192.168.8.2  # 测试 LAN
 ```
 
 ### 服务未启动

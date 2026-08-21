@@ -135,13 +135,13 @@ let
     # LAN 口（eth1 连接 br-lan）
     auto eth1
     iface eth1 inet static
-        address 192.168.10.1
+        address 192.168.8.1
         netmask 255.255.255.0
     EOF
 
     # 如果需要自定义 IP，可以通过环境变量传入
     if [ -n "$LAN_IP" ]; then
-        sed -i "s|address 192.168.10.1|address $LAN_IP|" /etc/network/interfaces
+        sed -i "s|address 192.168.8.1|address $LAN_IP|" /etc/network/interfaces
         log_info "  - LAN IP set to $LAN_IP"
     fi
 
@@ -218,7 +218,7 @@ let
     # ============================================================
     if [ "''${INSTALL_TAILSCALE:-yes}" = "yes" ] && [ -n "$TAILSCALE_AUTHKEY" ]; then
         log_info "Configuring Tailscale..."
-        tailscale up --authkey="$TAILSCALE_AUTHKEY" --advertise-routes=192.168.10.0/24 --accept-routes
+        tailscale up --authkey="$TAILSCALE_AUTHKEY" --advertise-routes=192.168.8.0/24 --accept-routes
     fi
 
     # ============================================================
@@ -239,7 +239,7 @@ let
 
     echo ""
     log_info "Alpine Router is ready!"
-    log_info "Access LAN interface at: 192.168.10.1"
+    log_info "Access LAN interface at: 192.168.8.1"
     log_warn "Remember to save changes: lbu commit -d"
   '';
 
@@ -275,7 +275,7 @@ in
       set -e
 
       VM_NAME="alpine-router"
-      VM_IP="192.168.10.1"
+      VM_IP="192.168.8.1"
       DEPLOY_PKG="/etc/libvirt/alpine-router-deploy.tar.gz"
 
       echo "Deploying Alpine Router configuration..."
@@ -300,7 +300,7 @@ in
     (pkgs.writeShellScriptBin "alpine-router-shell" ''
       #!/bin/sh
       # 快速连接到 Alpine Router VM
-      ssh root@192.168.10.1 "$@"
+      ssh root@192.168.8.1 "$@"
     '')
   ];
 }

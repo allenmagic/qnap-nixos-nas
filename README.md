@@ -28,12 +28,9 @@
 ```
 .
 ├── flake.nix                    # Flake 入口文件
-├── flake.lock                   # 依赖锁定
-├── hosts/
-│   └── ts564/
-│       ├── default.nix          # 主机配置
-│       ├── hardware-configuration.nix  # 硬件配置（自动生成）
-│       └── disks.nix            # 磁盘和文件系统配置
+├── configuration.nix            # 主机配置
+├── disks.nix                    # 磁盘和文件系统配置
+├── hardware-configuration.nix   # 硬件配置（安装时生成，不入库）
 ├── modules/
 │   ├── system/                  # 基础系统配置
 │   ├── hardware/                # 硬件相关（风扇、传感器）
@@ -43,8 +40,8 @@
 │   ├── security/                # SSH、sops-nix
 │   └── users/                   # 用户配置
 ├── secrets/
-│   └── secrets.yaml             # 加密的密钥文件
-└── alpine-router/               # Alpine Router 部署脚本
+│   └── secrets.yaml             # 加密的密钥文件（需手动创建）
+└── alpine-router/               # Alpine Router 部署文档
 ```
 
 ## 快速开始
@@ -87,15 +84,18 @@ nixos-generate-config --root /mnt
 cd /mnt/etc/nixos
 git clone https://github.com/allenmagic/qnap-nixos-nas.git .
 
-# 将生成的 hardware-configuration.nix 移动到正确位置
-mv hardware-configuration.nix hosts/ts564/
+# 将生成的 hardware-configuration.nix 移动到仓库根目录
+mv hardware-configuration.nix .
 
-# 编辑 hosts/ts564/disks.nix，填入 RAID UUID
+# 重要：flake 只能读取 git 跟踪的文件，用 intent-to-add 让其可见（文件本身不会被提交）
+git add -N -f hardware-configuration.nix
+
+# 编辑 disks.nix，填入 RAID UUID
 
 # 编辑 modules/users/nas-user.nix，添加你的 SSH 公钥
 
 # 安装系统
-nixos-install --flake .#ts564
+nixos-install --flake .#default
 
 # 重启
 reboot
@@ -105,7 +105,7 @@ reboot
 
 ```bash
 # SSH 登录
-ssh nas@192.168.10.2
+ssh nas@192.168.8.2
 
 # 生成 sops age 密钥
 sudo mkdir -p /var/lib/sops-nix
@@ -147,7 +147,7 @@ sudo virt-install \
 # 在 Alpine 控制台完成基础安装
 # - setup-alpine
 # - 配置 eth0 为 DHCP (WAN)
-# - 配置 eth1 为 192.168.10.1/24 (LAN)
+# - 配置 eth1 为 192.168.8.1/24 (LAN)
 # - 安装到磁盘 (sys 模式)
 
 # VM 重启后，部署配置
@@ -163,7 +163,7 @@ alpine-router-deploy
 nix flake update
 
 # 重建系统
-sudo nixos-rebuild switch --flake .#ts564
+sudo nixos-rebuild switch --flake .#default
 
 # 如果有问题，回滚
 sudo nixos-rebuild switch --rollback
@@ -173,6 +173,8 @@ sudo nixos-rebuild switch --rollback
 
 ```bash
 # 在修改 nanopi-r3s-rootfs 配置后
+nix flake lock --update-input alpine-router-configs
+sudo nixos-rebuild switch --flake .#default
 alpine-router-deploy
 
 # 或手动 SSH 进入 VM
@@ -216,9 +218,9 @@ sudo mdadm --detail /dev/md0
 "30-br-lan" = {
   matchConfig.Name = "br-lan";
   networkConfig = {
-    Address = "192.168.10.2/24";  # 修改这里
-    Gateway = "192.168.10.1";
-    DNS = [ "192.168.10.1" ];
+    Address = "192.168.8.2/24";  # 修改这里
+    Gateway = "192.168.8.1";
+    DNS = [ "192.168.8.1" ];
   };
 };
 ```
@@ -261,7 +263,7 @@ sudo mdadm --assemble --scan
 # 检查 /etc/mdadm.conf
 cat /etc/mdadm.conf
 
-# 更新 hosts/ts564/disks.nix 中的 mdadmConf
+# 更新 disks.nix 中的 mdadmConf
 ```
 
 ### Alpine VM 网络问题
@@ -272,7 +274,7 @@ ip link show br-wan
 ip link show br-lan
 
 # 测试连通性
-ping 192.168.10.1
+ping 192.168.8.1
 
 # 进入 VM 检查
 alpine-router-shell

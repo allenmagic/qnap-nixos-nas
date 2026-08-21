@@ -14,7 +14,7 @@
           Name = "br-wan";
         };
         bridgeConfig = {
-          STP = false;  # 单端口桥接不需要 STP
+          STP = false;
         };
       };
 
@@ -69,9 +69,9 @@
       "30-br-lan" = {
         matchConfig.Name = "br-lan";
         networkConfig = {
-          Address = "192.168.10.2/24";
-          Gateway = "192.168.10.1";  # 指向 Alpine VM 路由器
-          DNS = [ "192.168.10.1" ];
+          Address = "192.168.8.2/24";
+          Gateway = "192.168.8.1";  # 指向 Alpine VM 路由器
+          DNS = [ "192.168.8.1" ];
         };
       };
     };

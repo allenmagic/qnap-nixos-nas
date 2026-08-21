@@ -8,6 +8,9 @@
     mdadmConf = ''
       # ARRAY /dev/md0 level=raid1 num-devices=2 UUID=<your-uuid-here>
       # 使用 mdadm --detail --scan 获取实际配置
+
+      # 必须设置 MAILADDR 或 PROGRAM，否则 mdmon 服务会崩溃
+      MAILADDR root
     '';
   };
 

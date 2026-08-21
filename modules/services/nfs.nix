@@ -8,13 +8,13 @@
     # 导出的共享目录
     exports = ''
       # 数据共享
-      /srv/data   192.168.10.0/24(rw,sync,no_subtree_check,no_root_squash,fsid=0)
+      /srv/data   192.168.8.0/24(rw,sync,no_subtree_check,no_root_squash,fsid=0)
 
       # 缓存共享
-      /srv/cache  192.168.10.0/24(rw,sync,no_subtree_check,no_root_squash)
+      /srv/cache  192.168.8.0/24(rw,sync,no_subtree_check,no_root_squash)
 
       # 备份共享
-      /srv/backup 192.168.10.0/24(rw,sync,no_subtree_check,no_root_squash)
+      /srv/backup 192.168.8.0/24(rw,sync,no_subtree_check,no_root_squash)
     '';
 
     # 启用 NFSv4

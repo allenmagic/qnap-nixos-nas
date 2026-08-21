@@ -3,7 +3,7 @@ result
 result-*
 
 # Hardware configuration (generated during installation)
-hosts/*/hardware-configuration.nix
+/hardware-configuration.nix
 
 # Secrets (encrypted files are tracked, but keep unencrypted local files out)
 secrets/*.yaml.dec

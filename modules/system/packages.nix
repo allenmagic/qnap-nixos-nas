@@ -8,7 +8,6 @@
     nano
 
     # 系统工具
-    htop
     btop
     iotop
     tmux
@@ -56,7 +55,7 @@
 
   # Bash 配置
   programs.bash = {
-    enableCompletion = true;
+    completion.enable = true;
     shellAliases = {
       ll = "ls -alh";
       la = "ls -A";

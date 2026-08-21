@@ -7,9 +7,9 @@
   ];
 
   # 系统基础配置
-  system.stateVersion = "24.11";
+  system.stateVersion = "26.05";
 
-  networking.hostName = "ts564";
+  networking.hostName = "allenmagic-nas";
 
   # 启用 Flakes
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
@@ -17,7 +17,6 @@
   # 启用 QNAP 硬件支持
   hardware.qnap8528 = {
     enable = true;
-    # TS-564 使用 SAQ10/SBP90 配置，无需 skipHwCheck
     preserveLeds = true;
   };
 

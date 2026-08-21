@@ -13,7 +13,7 @@
     openDefaultPorts = true;
 
     # Web UI 配置
-    guiAddress = "192.168.10.2:8384";
+    guiAddress = "192.168.8.2:8384";
 
     # 配置
     settings = {

@@ -9,11 +9,7 @@
       package = pkgs.qemu_kvm;
       runAsRoot = false;
 
-      # 启用 UEFI 支持
-      ovmf = {
-        enable = true;
-        packages = [ pkgs.OVMFFull.fd ];
-      };
+      # OVMF/UEFI 固件随 QEMU 包默认提供，无需额外配置
 
       # 启用 TPM 支持（可选）
       swtpm.enable = true;
