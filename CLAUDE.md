@@ -4,9 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-QNAP TS-564 NAS 的 NixOS 单机配置仓库，使用 Flakes 声明式管理。注意：仓库已从 `hosts/ts564/` 多机结构**扁平化为单设备结构**（见 commit 8111ae7）——主机配置直接放在仓库根目录，flake 只输出 `nixosConfigurations.default`。
-
-**IMPLEMENTATION.md 是扁平化重构之前的文档，已过时**（文件顶部已加声明）：它描述的 `hosts/ts564/` 目录、`.#ts564` flake 输出均已不存在。README.md 已同步更新。完整的从零安装流程见 `INSTALL.md`。以实际文件结构为准。
+QNAP TS-564 NAS 的 NixOS 单机配置仓库，使用 Flakes 声明式管理。注意：仓库已从 `hosts/ts564/` 多机结构**扁平化为单设备结构**（见 commit 8111ae7）——主机配置直接放在仓库根目录，flake 只输出 `nixosConfigurations.default`。完整的从零安装流程见 `INSTALL.md`。
 
 ## 常用命令
 
@@ -57,7 +55,7 @@ sops secrets/secrets.yaml                         # 编辑加密密钥（需要 
 
 ## ⚠️ 当前状态与坑
 
-1. **内网网段为 `192.168.8.0/24`，且在多个文件硬编码**：`bridges.nix`（宿主机 IP/网关）、`samba.nix`（hosts allow）、`nfs.nix`（exports）、`syncthing.nix`（guiAddress）、`navidrome.nix`（绑定地址）、`alpine-router.nix` 内 install.sh（默认 LAN IP、Tailscale advertise-routes）。修改网段时必须全局同步这些位置，否则服务绑定错 IP 或防火墙/共享拒绝访问。历史文档 IMPLEMENTATION.md 中仍出现旧网段 192.168.10.x（已标注过时）。
+1. **内网网段为 `192.168.8.0/24`，且在多个文件硬编码**：`bridges.nix`（宿主机 IP/网关）、`samba.nix`（hosts allow）、`nfs.nix`（exports）、`syncthing.nix`（guiAddress）、`navidrome.nix`（绑定地址）、`alpine-router.nix` 常量（install.sh 默认值、Tailscale advertise-routes）。修改网段时必须全局同步这些位置，否则服务绑定错 IP 或防火墙/共享拒绝访问。
 2. `configuration.nix` imports 的 `./hardware-configuration.nix` **不在仓库中**（被 gitignore，忽略规则为根目录下的 `/hardware-configuration.nix`）。安装时由 `nixos-generate-config --root /mnt` 生成，复制到仓库根目录；`hardware-configuration.nix.example` 是占位模板。**flake 求值只能看到 git 跟踪的文件**——生成该文件后必须执行 `git add -N -f hardware-configuration.nix`（intent-to-add），否则 `nixos-rebuild --flake` 报 "not tracked by Git"。
 3. `secrets/secrets.yaml` 尚不存在。sops 模块引用了它但 `secrets` 集合为空；在 `modules/security/sops.nix` 中取消注释 secret 定义前，须先按 `secrets/README.md` 生成 age 密钥并创建加密文件。
 4. `modules/users/nas-user.nix` 的 SSH 公钥是占位注释——无任何密钥则无法 SSH 登录（密码登录已禁用）。`wheelNeedsPassword = true`。

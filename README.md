@@ -37,7 +37,6 @@
 ├── hardware-configuration.nix         # 硬件配置（安装时生成，不入库）
 ├── README.md                          # 本文档
 ├── INSTALL.md                         # 从零安装完整指南
-├── IMPLEMENTATION.md                  # 项目创建总结（已过时）
 ├── modules/
 │   ├── system/                        # 基础系统配置（语言、软件包、Nix 设置）
 │   ├── hardware/                      # 硬件相关（风扇、传感器）
@@ -317,6 +316,12 @@ ping 192.168.8.1
 # 进入 VM 检查
 alpine-router-shell
 ```
+
+## 设计决策
+
+- **Alpine VM 路由而非 NixOS 原生路由**：复用成熟的 Alpine 路由配置体系；故障隔离（路由问题不影响 NAS 存储服务）；内存占用小（512MB）；网络配置可独立备份与恢复
+- **install.sh 而非 cloud-init**：配置更新只需重新运行脚本；可逐步调试；直接复用 base/ 文件结构；可添加任意自定义逻辑
+- **模块化**：每个功能独立一个模块文件（`modules/` 与 `alpine-router/lib/`），便于启用/禁用与维护
 
 ## 参考文档
 
