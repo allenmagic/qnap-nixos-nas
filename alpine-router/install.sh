@@ -69,7 +69,9 @@ sync_dir() {
     _src="$1"; _dest="$2"
     if [ -d "${_src}" ]; then
         mkdir -p "${_dest}"
-        rsync -av --delete "${_src}/" "${_dest}/"
+        # 不使用 --delete：目标目录（如 /etc/init.d、/etc/conf.d）含 Alpine 系统自身文件，
+        # 删除会破坏系统脚本/配置；只覆盖源目录中存在的文件
+        rsync -av "${_src}/" "${_dest}/"
     else
         log_warn "  跳过 ${_src}（不存在）"
     fi

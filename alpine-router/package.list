@@ -27,4 +27,5 @@
 [pm] iproute2
 [pm] dnsmasq
 [pm] tailscale
+# cloudflared 官方 linux-amd64 为静态编译，不区分 glibc/musl，可直接在 Alpine 上运行
 [dl@https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64] cloudflared

@@ -21,7 +21,7 @@ alpine-router-shell                                # 在 NAS 上执行：SSH 进
 sops secrets/secrets.yaml                         # 编辑加密密钥（需要 age 私钥）
 ```
 
-**⚠️ 仓库没有 flake.lock**。任何 `nixos-rebuild` / `nix flake check` 都会因缺少 lock 文件而失败，首次构建前必须先运行 `nix flake update` 生成它。
+**flake.lock 已提交并锁定依赖**（nixos-26.05）。升级依赖时运行 `nix flake update` 重新生成 lock 文件。
 
 ## 架构
 

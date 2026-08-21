@@ -135,20 +135,12 @@ check_and_restart() {
 
 # ==================== 守护进程 ====================
 daemon_start() {
-    if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-        echo "守护进程已在运行"
-        return
-    fi
-
     log "[INFO] 启动网络看门狗守护进程（间隔 ${CHECK_INTERVAL}s）"
-    (
-        while true; do
-            check_and_restart
-            sleep "$CHECK_INTERVAL"
-        done
-    ) &
-    echo $! > "$PID_FILE"
-    echo "守护进程已启动 (PID: $(cat "$PID_FILE"))"
+    # 前台运行循环，由 OpenRC（command_background=yes）负责后台化与 PID 管理
+    while true; do
+        check_and_restart
+        sleep "$CHECK_INTERVAL"
+    done
 }
 
 daemon_stop() {
