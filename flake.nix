@@ -14,19 +14,13 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Alpine Router configuration (your nanopi-r3s-rootfs)
-    alpine-router-configs = {
-      url = "github:allenmagic/nanopi-r3s-rootfs";
-      flake = false;
-    };
   };
 
-  outputs = { self, nixpkgs, qnap8528, sops-nix, alpine-router-configs, ... }@inputs: {
+  outputs = { self, nixpkgs, qnap8528, sops-nix, ... }@inputs: {
     nixosConfigurations.default = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       specialArgs = {
         inherit inputs;
-        alpineRouterConfigs = alpine-router-configs;
       };
       modules = [
         # Import QNAP module

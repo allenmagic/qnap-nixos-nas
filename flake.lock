@@ -1,21 +1,5 @@
 {
   "nodes": {
-    "alpine-router-configs": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1786441004,
-        "narHash": "sha256-BGx46PSvxznotKbNznj8jJYT8zlhYSKqDQTxLDh2au0=",
-        "owner": "allenmagic",
-        "repo": "nanopi-r3s-rootfs",
-        "rev": "0ce5ca8f0961b896ccbfe4400bca9263cabb4289",
-        "type": "github"
-      },
-      "original": {
-        "owner": "allenmagic",
-        "repo": "nanopi-r3s-rootfs",
-        "type": "github"
-      }
-    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1787101114,
@@ -68,7 +52,6 @@
     },
     "root": {
       "inputs": {
-        "alpine-router-configs": "alpine-router-configs",
         "nixpkgs": "nixpkgs",
         "qnap8528": "qnap8528",
         "sops-nix": "sops-nix"

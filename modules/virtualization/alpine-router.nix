@@ -1,4 +1,4 @@
-{ config, pkgs, lib, alpineRouterConfigs, ... }:
+{ config, pkgs, lib, ... }:
 
 let
   # 生成 Alpine Router 部署脚本
@@ -246,12 +246,12 @@ let
   # 打包部署文件（install.sh + base 配置）
   alpineRouterDeployPkg = pkgs.stdenv.mkDerivation {
     name = "alpine-router-deploy";
-    src = alpineRouterConfigs;
+    src = ../../alpine-router/base;
 
     installPhase = ''
-      mkdir -p $out
-      # 复制 base 配置目录
-      cp -r base $out/
+      mkdir -p $out/base
+      # 复制 base 配置目录（src 即 base 目录本身，源文件在构建根目录）
+      cp -r . $out/base/
       # 复制安装脚本
       cp ${installScript} $out/install.sh
       chmod +x $out/install.sh

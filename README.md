@@ -49,6 +49,7 @@
 │   ├── README.md                      # sops-nix 使用指南
 │   └── secrets.yaml                   # 加密的密钥文件（需手动创建）
 └── alpine-router/
+    ├── base/                          # Alpine 路由 VM 配置（构建时打包进部署 tarball）
     └── README.md                      # Alpine Router VM 部署指南
 ```
 
@@ -185,8 +186,7 @@ sudo nixos-rebuild switch --rollback
 ### Alpine Router 配置更新
 
 ```bash
-# 在修改 nanopi-r3s-rootfs 配置后
-nix flake lock --update-input alpine-router-configs
+# 在修改 alpine-router/base/ 配置后
 sudo nixos-rebuild switch --flake .#default
 alpine-router-deploy
 

@@ -4,7 +4,7 @@
 
 ## 配置来源
 
-路由器配置来自 [nanopi-r3s-rootfs](https://github.com/allenmagic/nanopi-r3s-rootfs) 仓库的 `base/` 目录。
+路由器配置在本仓库的 `base/` 目录维护（最初从 nanopi-r3s-rootfs 导入，现已解耦）。
 
 ## 部署流程
 
@@ -98,7 +98,7 @@ ps aux | grep dnsmasq
 
 ## 配置文件说明
 
-从 nanopi-r3s-rootfs 同步的配置：
+本仓库 `base/` 目录中的配置：
 
 - `base/nftables.nft` - 防火墙主配置
 - `base/nftables.d/` - 防火墙规则模块
@@ -133,16 +133,13 @@ br-lan ━━━━━━┫
 
 ## 更新配置
 
-当 nanopi-r3s-rootfs 配置更新后：
+修改 `base/` 下的配置后：
 
 ```bash
-# 1. 在本仓库更新 flake inputs
-nix flake lock --update-input alpine-router-configs
-
-# 2. 重新构建 NixOS（生成新的部署包）
+# 1. 重新构建 NixOS（生成新的部署包）
 sudo nixos-rebuild switch --flake .#default
 
-# 3. 部署到 Alpine VM
+# 2. 部署到 Alpine VM
 alpine-router-deploy
 ```
 

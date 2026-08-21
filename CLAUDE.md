@@ -12,7 +12,6 @@ QNAP TS-564 NAS 的 NixOS 单机配置仓库，使用 Flakes 声明式管理。�
 
 ```bash
 nix flake update                                  # 更新全部 flake 依赖
-nix flake lock --update-input alpine-router-configs  # 仅更新 Alpine 路由配置
 nix flake check                                   # 验证配置求值
 
 sudo nixos-rebuild switch --flake .#default       # 重建系统（flake 输出名为 default，不是 .#ts564）
@@ -30,7 +29,7 @@ sops secrets/secrets.yaml                         # 编辑加密密钥（需要 
 
 ### 入口与模块组织
 
-- `flake.nix`：唯一入口。imports qnap8528 和 sops-nix 的 nixosModules，然后导入 `./configuration.nix` 和 `./modules/{system,hardware,network,virtualization,services,security,users}`。通过 `specialArgs` 传入两个特殊参数：`inputs`（所有 flake 输入）和 `alpineRouterConfigs`（nanopi-r3s-rootfs 仓库源码路径）。
+- `flake.nix`：唯一入口。imports qnap8528 和 sops-nix 的 nixosModules，然后导入 `./configuration.nix` 和 `./modules/{system,hardware,network,virtualization,services,security,users}`。通过 `specialArgs` 传入 `inputs`（所有 flake 输入，qnap8528 模块用它读 fancontrol 配置）。
 - `configuration.nix`：主机级配置（hostname、stateVersion、boot loader、QNAP 硬件开关），imports `./hardware-configuration.nix` 和 `./disks.nix`。
 - `modules/<分组>/default.nix` 是每个分组的聚合入口，只做 imports；具体配置在分组内的各个文件里。
 
@@ -43,10 +42,10 @@ sops secrets/secrets.yaml                         # 编辑加密密钥（需要 
 ### Alpine 路由 VM
 
 - VM 本身**不在 NixOS 中声明**（需手动 `virt-install` 创建，见 `alpine-router/README.md`），NixOS 只负责打包和分发其配置。VM 镜像为 Alpine **3.24-stable**（virt ISO 3.24.1），virt-install 的 `--os-variant` 用 `alpinelinux3.23`（osinfo-db 尚无 3.24 条目，3.23 是最接近的）。
-- 路由配置来自外部仓库 `github:allenmagic/nanopi-r3s-rootfs`（flake input，`flake = false`，只取源码）。构建时（`modules/virtualization/alpine-router.nix`）把该仓库的 `base/` 目录 + 内嵌的 `install.sh` 打成 tarball，放入 `/etc/libvirt/alpine-router-deploy.tar.gz`。
+- 路由配置在本仓库 `alpine-router/base/` 目录维护（最初从 nanopi-r3s-rootfs 导入，现已解耦）。构建时（`modules/virtualization/alpine-router.nix`）把 `base/` 目录 + 内嵌的 `install.sh` 打成 tarball，放入 `/etc/libvirt/alpine-router-deploy.tar.gz`。
 - `install.sh` 在 VM 内执行：装包、rsync 配置到 /etc、启用 OpenRC 服务。默认 LAN IP 为 `192.168.8.1`（用 `LAN_IP` 环境变量覆盖，sed 替换）。
 - `alpine-router-deploy` 包装脚本：ping 检查 VM 在线 → scp tarball → ssh 执行 install.sh。脚本内 VM_IP 硬编码。
-- 更新路由配置的完整流程：`nix flake lock --update-input alpine-router-configs` → `nixos-rebuild switch`（生成新 tarball）→ `alpine-router-deploy`。
+- 更新路由配置的完整流程：修改 `alpine-router/base/` → `nixos-rebuild switch`（生成新 tarball）→ `alpine-router-deploy`。
 - 系统 Web 管理通过 **Cockpit**（9090，`modules/services/cockpit.nix`），当前启用 `cockpit-machines` 插件（依赖 `virtualisation.libvirtd.dbus.enable`）；可按需加 podman/files/zfs 等插件。virt-manager/virt-viewer 等 GUI 工具已移除，命令行用 virsh/libguestfs。
 
 ### 硬件与密钥
@@ -64,6 +63,7 @@ sops secrets/secrets.yaml                         # 编辑加密密钥（需要 
 5. `disks.nix` 的 `boot.swraid.mdadmConf` 为空占位，首次安装需填入 `mdadm --detail --scan` 的输出。
 6. `modules/security/sops.nix` 中 `defaultSopsFile = ../../secrets/secrets.yaml` 是相对路径——移动该文件时必须同步改路径。
 7. **Cockpit 登录需要系统密码**：cockpit 本地登录走 PAM 密码认证，而 `nas` 用户 `hashedPassword = "!"`（`modules/users/nas-user.nix`）。要用 Cockpit 必须先给 nas（或专用用户）设系统密码：`mkpasswd -m sha-512` 生成哈希后填入。SSH 仍只允许密钥登录，不受影响。
+8. `alpine-router/base/` 中仍有 R3S 遗留与占位符：`nftables.d/00-inet-vars.nft` 的 `__WAN_IFACE__`/`__LAN_IFACE__`/`__ROUTER_LAN_IP__`/`__LAN_NET__` 占位符（构建时尚未替换）、`local.d/` 的 LED/网卡调优脚本。部署前需处理，详见 `alpine-router/base/README.md`。
 
 ## 代码风格
 
