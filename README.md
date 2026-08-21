@@ -7,7 +7,7 @@
 - **声明式配置**: 所有配置通过 Nix 管理，可重现、可回滚
 - **QNAP 硬件支持**: 集成 qnap8528 内核模块，支持风扇控制、LED、温度传感器
 - **Alpine Router VM**: 使用独立 VM 处理网络路由、NAT、DHCP、DNS
-- **Web 管理**: Cockpit + cockpit-machines 浏览器管理虚拟机
+- **Web 管理**: Cockpit Web 界面管理虚拟机与系统（插件可扩展）
 - **存储服务**: Samba、NFS、Syncthing、Navidrome
 - **安全管理**: sops-nix 加密密钥管理、SSH 密钥认证
 - **自动化维护**: 定期垃圾回收、SMART 监控、SSD Trim
@@ -28,21 +28,28 @@
 
 ```
 .
-├── flake.nix                    # Flake 入口文件
-├── configuration.nix            # 主机配置
-├── disks.nix                    # 磁盘和文件系统配置
-├── hardware-configuration.nix   # 硬件配置（安装时生成，不入库）
+├── flake.nix                          # Flake 入口文件
+├── flake.lock                         # 依赖锁定（必须提交）
+├── CLAUDE.md                          # Claude Code 开发指引
+├── configuration.nix                  # 主机配置
+├── disks.nix                          # 磁盘和文件系统配置
+├── hardware-configuration.nix.example # 硬件配置模板
+├── hardware-configuration.nix         # 硬件配置（安装时生成，不入库）
+├── README.md                          # 本文档
+├── IMPLEMENTATION.md                  # 项目创建总结（已过时）
 ├── modules/
-│   ├── system/                  # 基础系统配置
-│   ├── hardware/                # 硬件相关（风扇、传感器）
-│   ├── network/                 # 网络配置（桥接）
-│   ├── virtualization/          # libvirtd 和 Alpine Router
-│   ├── services/                # NAS 服务（Samba、NFS 等）
-│   ├── security/                # SSH、sops-nix
-│   └── users/                   # 用户配置
+│   ├── system/                        # 基础系统配置（语言、软件包、Nix 设置）
+│   ├── hardware/                      # 硬件相关（风扇、传感器）
+│   ├── network/                       # 网络配置（桥接、防火墙）
+│   ├── virtualization/                # libvirtd 和 Alpine Router
+│   ├── services/                      # Samba、NFS、Syncthing、Navidrome、Cockpit
+│   ├── security/                      # SSH、sops-nix
+│   └── users/                         # 用户配置
 ├── secrets/
-│   └── secrets.yaml             # 加密的密钥文件（需手动创建）
-└── alpine-router/               # Alpine Router 部署文档
+│   ├── README.md                      # sops-nix 使用指南
+│   └── secrets.yaml                   # 加密的密钥文件（需手动创建）
+└── alpine-router/
+    └── README.md                      # Alpine Router VM 部署指南
 ```
 
 ## 快速开始
@@ -118,6 +125,11 @@ sudo cat /var/lib/sops-nix/key.txt | grep "public key:"
 
 # 设置 Samba 密码
 sudo smbpasswd -a nas
+
+# 设置 nas 系统密码（Cockpit Web 登录需要；SSH 仍只用密钥）
+mkpasswd -m sha-512
+# 将输出哈希填入 modules/users/nas-user.nix 的 hashedPassword，然后重建系统
+sudo nixos-rebuild switch --flake .#default
 ```
 
 ### 5. 部署 Alpine Router VM
@@ -190,6 +202,7 @@ systemctl status samba
 systemctl status nfs-server
 systemctl status syncthing
 systemctl status navidrome
+systemctl status cockpit
 
 # 重启服务
 sudo systemctl restart samba
@@ -234,7 +247,17 @@ sudo mdadm --detail /dev/md0
 
 ### 添加 Samba 共享
 
-编辑 `modules/services/samba.nix`，在 `shares` 中添加新条目。
+编辑 `modules/services/samba.nix`，在 `settings` 中添加新的共享段（每个共享名对应一个 smb.conf 段）：
+
+```nix
+settings.newshare = {
+  "path" = "/srv/data/newshare";
+  "read only" = "no";
+  "valid users" = "nas";
+  "force user" = "nas";
+  "force group" = "nas";
+};
+```
 
 ### 添加 SSH 公钥
 

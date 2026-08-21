@@ -3,6 +3,8 @@
 # This file will be generated automatically during NixOS installation.
 # Run: nixos-generate-config --root /mnt
 # Then move the generated hardware-configuration.nix to this location.
+# After moving, make it visible to the flake without committing it:
+#   git add -N -f hardware-configuration.nix
 #
 # DO NOT commit the actual hardware-configuration.nix to Git.
 # It contains system-specific hardware details.
