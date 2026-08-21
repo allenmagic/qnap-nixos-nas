@@ -1,6 +1,21 @@
 { config, pkgs, lib, ... }:
 
 let
+  # ============================================================
+  # 路由 VM 网络参数
+  # 与 modules/network/bridges.nix 中的 br-lan 配置保持一致！
+  # 修改网段时两边必须同步
+  # ============================================================
+  wanIface = "eth0";               # VM 的 WAN 口（接 br-wan）
+  lanIface = "eth1";               # VM 的 LAN 口（接 br-lan）
+  lanIp = "192.168.8.1";           # VM LAN 口 IP（NAS 的网关）
+  lanNet = "192.168.8.0/24";
+  lanNetmask = "255.255.255.0";
+  lanBroadcast = "192.168.8.255";
+  dhcpRangeStart = "192.168.8.100";
+  dhcpRangeEnd = "192.168.8.200";
+  dhcpLeaseTime = "24h";
+
   # 生成 Alpine Router 部署脚本
   installScript = pkgs.writeShellScript "install.sh" ''
     #!/bin/sh
@@ -135,13 +150,13 @@ let
     # LAN 口（eth1 连接 br-lan）
     auto eth1
     iface eth1 inet static
-        address 192.168.8.1
-        netmask 255.255.255.0
+        address ${lanIp}
+        netmask ${lanNetmask}
     EOF
 
     # 如果需要自定义 IP，可以通过环境变量传入
     if [ -n "$LAN_IP" ]; then
-        sed -i "s|address 192.168.8.1|address $LAN_IP|" /etc/network/interfaces
+        sed -i "s|address ${lanIp}|address $LAN_IP|" /etc/network/interfaces
         log_info "  - LAN IP set to $LAN_IP"
     fi
 
@@ -193,9 +208,16 @@ let
 
     start_service() {
         local service=$1
-        if rc-service "$service" status >/dev/null 2>&1; then
-            rc-service "$service" restart
+        if [ -f "/etc/init.d/$service" ]; then
+            # 已运行则 restart（重新加载配置），未运行则 start
+            if rc-service "$service" status >/dev/null 2>&1; then
+                rc-service "$service" restart
+            else
+                rc-service "$service" start
+            fi
             log_info "  - Started: $service"
+        else
+            log_warn "  - Service not found: $service"
         fi
     }
 
@@ -218,7 +240,7 @@ let
     # ============================================================
     if [ "''${INSTALL_TAILSCALE:-yes}" = "yes" ] && [ -n "$TAILSCALE_AUTHKEY" ]; then
         log_info "Configuring Tailscale..."
-        tailscale up --authkey="$TAILSCALE_AUTHKEY" --advertise-routes=192.168.8.0/24 --accept-routes
+        tailscale up --authkey="$TAILSCALE_AUTHKEY" --advertise-routes=${lanNet} --accept-routes
     fi
 
     # ============================================================
@@ -239,14 +261,32 @@ let
 
     echo ""
     log_info "Alpine Router is ready!"
-    log_info "Access LAN interface at: 192.168.8.1"
-    log_warn "Remember to save changes: lbu commit -d"
+    log_info "Access LAN interface at: ${lanIp}"
+    log_warn "If this is the first deployment, reboot the VM to apply network settings"
   '';
 
   # 打包部署文件（install.sh + base 配置）
   alpineRouterDeployPkg = pkgs.stdenv.mkDerivation {
     name = "alpine-router-deploy";
     src = ../../alpine-router/base;
+
+    # 构建时把 base/ 中的占位符替换为具体配置
+    postPatch = ''
+      substituteInPlace nftables.d/00-inet-vars.nft \
+        --replace-fail '__WAN_IFACE__' ${wanIface} \
+        --replace-fail '__LAN_IFACE__' ${lanIface} \
+        --replace-fail '__ROUTER_LAN_IP__' ${lanIp} \
+        --replace-fail '__LAN_NET__' ${lanNet}
+
+      substituteInPlace dnsmasq.d/10-dhcp-eth1.conf \
+        --replace-fail '__LAN_IFACE__' ${lanIface} \
+        --replace-fail '__LAN_IP__' ${lanIp} \
+        --replace-fail '__LAN_NETWORK__' ${lanBroadcast} \
+        --replace-fail '__DHCP_RANGE_START__' ${dhcpRangeStart} \
+        --replace-fail '__DHCP_RANGE_END__' ${dhcpRangeEnd} \
+        --replace-fail '__LAN_NETMASK__' ${lanNetmask} \
+        --replace-fail '__DHCP_LEASE_TIME__' ${dhcpLeaseTime}
+    '';
 
     installPhase = ''
       mkdir -p $out/base

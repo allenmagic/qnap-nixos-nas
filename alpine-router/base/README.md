@@ -20,9 +20,13 @@
 | `local.d/` | 本地启动脚本 | `/etc/local.d/` |
 | `tailscale/` | Tailscale 配置 | `/etc/tailscale/` |
 
-## ⚠️ 待处理的占位符与设备专用文件
+## 占位符与构建时替换
 
-- `nftables.d/00-inet-vars.nft`：`__WAN_IFACE__`、`__LAN_IFACE__`、`__ROUTER_LAN_IP__`、`__LAN_NET__` 占位符（原注释称由 network.sh 在部署时替换，当前构建流程尚未做替换）；`PROXY_SERVER_IP = 192.168.8.180` 为 R3S 环境遗留
+`nftables.d/00-inet-vars.nft` 和 `dnsmasq.d/10-dhcp-eth1.conf` 中的 `__XXX__` 占位符由 **Nix 构建时替换**（`modules/virtualization/alpine-router.nix` 的 `postPatch`），网络参数常量定义在同文件的 `let` 块中，**必须与 `modules/network/bridges.nix` 的 br-lan 配置保持一致**。
+
+## ⚠️ R3S 环境遗留，待处理
+
+- `nftables.d/00-inet-vars.nft`：`PROXY_SERVER_IP = 192.168.8.180` 为 R3S 环境遗留（被 20-inet-filter.nft 引用）
 - `local.d/00-leds.start`：R3S 硬件 LED 控制（`/sys/class/leds/wan_led` 等），VM 中无效
 - `local.d/99-hw-tweak.start`：R3S 网卡调优（UDP GRO、RPS、CPU 调度），VM 环境需重新评估
 - `modules-load.d/r3s-router.conf`：文件名含 r3s，内容（tun、wireguard）在 VM 中仍适用

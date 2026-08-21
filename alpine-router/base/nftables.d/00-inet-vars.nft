@@ -1,5 +1,5 @@
 # 1. 基础接口定义 (单体)
-# 占位符由 network.sh 在部署时替换
+# 占位符由 Nix 构建时替换（modules/virtualization/alpine-router.nix）
 define WAN = __WAN_IFACE__
 define LAN = __LAN_IFACE__
 define WG = wg0

@@ -36,6 +36,7 @@
 ├── hardware-configuration.nix.example # 硬件配置模板
 ├── hardware-configuration.nix         # 硬件配置（安装时生成，不入库）
 ├── README.md                          # 本文档
+├── INSTALL.md                         # 从零安装完整指南
 ├── IMPLEMENTATION.md                  # 项目创建总结（已过时）
 ├── modules/
 │   ├── system/                        # 基础系统配置（语言、软件包、Nix 设置）
@@ -54,6 +55,8 @@
 ```
 
 ## 快速开始
+
+> 📖 完整的分步安装指南（含磁盘分区、RAID、Alpine VM 创建、验收清单）见 **[INSTALL.md](INSTALL.md)**。以下为精简流程。
 
 ### 1. 准备工作
 
