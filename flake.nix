@@ -22,7 +22,7 @@
   };
 
   outputs = { self, nixpkgs, qnap8528, sops-nix, alpine-router-configs, ... }@inputs: {
-    nixosConfigurations.ts564 = nixpkgs.lib.nixosSystem {
+    nixosConfigurations.default = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       specialArgs = {
         inherit inputs;
@@ -35,8 +35,8 @@
         # Import sops-nix
         sops-nix.nixosModules.sops
 
-        # Import host configuration
-        ./hosts/ts564
+        # Import main configuration
+        ./configuration.nix
 
         # Import all module groups
         ./modules/system
