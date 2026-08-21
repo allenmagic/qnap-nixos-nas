@@ -7,6 +7,7 @@
 - **声明式配置**: 所有配置通过 Nix 管理，可重现、可回滚
 - **QNAP 硬件支持**: 集成 qnap8528 内核模块，支持风扇控制、LED、温度传感器
 - **Alpine Router VM**: 使用独立 VM 处理网络路由、NAT、DHCP、DNS
+- **Web 管理**: Cockpit + cockpit-machines 浏览器管理虚拟机
 - **存储服务**: Samba、NFS、Syncthing、Navidrome
 - **安全管理**: sops-nix 加密密钥管理、SSH 密钥认证
 - **自动化维护**: 定期垃圾回收、SMART 监控、SSD Trim
@@ -124,8 +125,8 @@ sudo smbpasswd -a nas
 #### 手动方式
 
 ```bash
-# 下载 Alpine ISO
-wget https://dl-cdn.alpinelinux.org/alpine/v3.20/releases/x86_64/alpine-virt-3.20.3-x86_64.iso
+# 下载 Alpine ISO（3.24-stable 分支）
+wget https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/x86_64/alpine-virt-3.24.1-x86_64.iso
 
 # 创建虚拟磁盘
 sudo qemu-img create -f qcow2 /var/lib/libvirt/images/alpine-router.qcow2 8G
@@ -136,12 +137,12 @@ sudo virt-install \
   --memory 512 \
   --vcpus 2 \
   --disk path=/var/lib/libvirt/images/alpine-router.qcow2,format=qcow2 \
-  --cdrom alpine-virt-3.20.3-x86_64.iso \
+  --cdrom alpine-virt-3.24.1-x86_64.iso \
   --network bridge=br-wan,model=virtio \
   --network bridge=br-lan,model=virtio \
   --graphics none \
   --console pty,target_type=serial \
-  --os-variant alpinelinux3.17 \
+  --os-variant alpinelinux3.23 \
   --autostart
 
 # 在 Alpine 控制台完成基础安装
@@ -193,6 +194,12 @@ systemctl status navidrome
 # 重启服务
 sudo systemctl restart samba
 ```
+
+### Cockpit Web 管理
+
+浏览器访问 http://192.168.8.2:9090，用 `nas` 用户和系统密码登录，可管理虚拟机（创建/启动/停止/控制台）。
+
+> 注意：Cockpit 登录使用 PAM 密码认证，需要在 `modules/users/nas-user.nix` 中为 nas 用户设置系统密码（`mkpasswd -m sha-512` 生成哈希填入 `hashedPassword`）。
 
 ### 监控
 

@@ -24,6 +24,7 @@
           8384    # Syncthing Web UI
           22000   # Syncthing sync
           4533    # Navidrome
+          9090    # Cockpit Web UI
         ];
         allowedUDPPorts = [
           137 138 # Samba (NetBIOS)

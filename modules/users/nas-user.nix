@@ -19,7 +19,10 @@
       # "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... your-key-here"
     ];
 
-    # 禁用密码登录（使用 SSH 密钥）
+    # 禁用密码登录（SSH 使用密钥）
+    # 注意：Cockpit Web 登录走 PAM 密码认证，需要给该用户设置系统密码后才能登录 Cockpit。
+    # 生成密码哈希：mkpasswd -m sha-512，然后替换 hashedPassword 的值：
+    # hashedPassword = "$6$...";
     hashedPassword = "!";
   };
 

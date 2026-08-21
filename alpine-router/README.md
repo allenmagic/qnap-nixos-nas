@@ -11,8 +11,8 @@
 ### 1. 创建 Alpine VM
 
 ```bash
-# 下载 Alpine virt ISO
-wget https://dl-cdn.alpinelinux.org/alpine/v3.20/releases/x86_64/alpine-virt-3.20.3-x86_64.iso
+# 下载 Alpine virt ISO（3.24-stable 分支）
+wget https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/x86_64/alpine-virt-3.24.1-x86_64.iso
 
 # 创建虚拟磁盘
 sudo qemu-img create -f qcow2 /var/lib/libvirt/images/alpine-router.qcow2 8G
@@ -23,12 +23,12 @@ sudo virt-install \
   --memory 512 \
   --vcpus 2 \
   --disk path=/var/lib/libvirt/images/alpine-router.qcow2,format=qcow2 \
-  --cdrom alpine-virt-3.20.3-x86_64.iso \
+  --cdrom alpine-virt-3.24.1-x86_64.iso \
   --network bridge=br-wan,model=virtio \
   --network bridge=br-lan,model=virtio \
   --graphics none \
   --console pty,target_type=serial \
-  --os-variant alpinelinux3.17 \
+  --os-variant alpinelinux3.23 \
   --autostart
 ```
 

@@ -6,5 +6,6 @@
     ./nfs.nix
     ./syncthing.nix
     ./navidrome.nix
+    ./cockpit.nix
   ];
 }
