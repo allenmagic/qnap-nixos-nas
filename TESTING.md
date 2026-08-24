@@ -72,6 +72,10 @@ git add -N -f hardware-configuration.nix   # flake 只能读 git 跟踪的文件
 # a) disks.nix：填入 2.4 的 ARRAY 行（mdadmConf）
 # b) modules/users/nas-user.nix：填 SSH 公钥（可选；不填只能控制台 root 登录）
 # c) 想装完有网：modules/network/bridges.nix 接口名 eno1→enp0s3、eno2→enp0s8
+# d) ⚠️ VM 特有必删：生成的 hardware-configuration.nix 检测到 VirtualBox 会自动加
+#    virtualisation.virtualbox.guest.enable = true;，要求为当前内核编译 Guest Additions
+#    模块，编译失败会拖垮整个 linux-modules 闭包导致安装失败。VM 测试不需要它：
+sed -i '/virtualbox.guest/d' hardware-configuration.nix
 ```
 
 ## 4. 安装（TUNA 镜像）
@@ -106,3 +110,4 @@ ip a                                # 改过 bridges.nix 则有网络配置
 | flake 报 not tracked by Git | 未 `git add -N -f hardware-configuration.nix` |
 | 重启后 RAID 未组装 | disks.nix 的 mdadmConf 缺 ARRAY 行 |
 | qnap8528 模块加载失败 | VM 无 QNAP EC 硬件，预期现象 |
+| `VirtualBox-GuestAdditions` 构建失败，linux-modules 闭包连锁报错 | 生成的 hardware-configuration.nix 带 `virtualisation.virtualbox.guest.enable = true;`；删除该行再重装（VM 测试不需要 Guest Additions） |
