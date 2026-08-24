@@ -10,7 +10,10 @@
     settings = {
       # 全局配置（对应 [global] 段）
       global = {
-        # 安全模式
+        # 安全模式（user = 每连接用户名+密码认证）
+        # 注意：Samba 用独立的密码库（tdbsam），与系统 shadow 无关。
+        # nas 用户需手动设置 Samba 密码（sudo smbpasswd -a nas）；
+        # hashedPassword 只影响 PAM 登录（SSH/Cockpit），Nix 无法声明式配置 Samba 密码。
         "security" = "user";
 
         # 全局设置
@@ -22,11 +25,7 @@
         "server min protocol" = "SMB3";
         "smb encrypt" = "desired";
 
-        # 性能优化
-        "socket options" = "TCP_NODELAY IPTOS_LOWDELAY SO_RCVBUF=524288 SO_SNDBUF=524288";
-        "read raw" = "yes";
-        "write raw" = "yes";
-        "max xmit" = 65536;
+        # 空闲连接超时（分钟）
         "dead time" = 15;
 
         # 访问控制
