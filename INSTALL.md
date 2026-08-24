@@ -60,6 +60,18 @@ ping -c 3 8.8.8.8
 
 > 本节及之后所有命令都需要 root 权限：进入安装环境后先执行 `sudo -i`（ISO 的 `nixos` 用户免密 sudo），之后的命令无需再加 sudo。
 
+**可选：使用代理加速 GitHub（国内网络）**。Nix 无代理配置项，走标准环境变量（libcurl）。代理地址按实际改（VirtualBox NAT 下宿主机是 `10.0.2.2`；真机为内网代理 IP）：
+
+```bash
+export http_proxy=http://10.0.2.2:7890
+export https_proxy=http://10.0.2.2:7890
+export no_proxy=localhost,127.0.0.1,192.168.0.0/16,mirrors.tuna.tsinghua.edu.cn
+curl -I https://github.com    # 验证代理可用后继续
+# 若下载仍不走代理（部分下载由 nix-daemon 完成）：
+#   systemctl set-environment http_proxy=$http_proxy https_proxy=$https_proxy no_proxy=$no_proxy
+#   systemctl restart nix-daemon
+```
+
 先用 `lsblk` 确认磁盘名（本文假设：`/dev/sda`=256GB 系统盘、`/dev/sdb` `/dev/sdc`=3TB×2、`/dev/sdd`=1TB 缓存、`/dev/sde`=2TB 备份）。
 
 ### 2.1 系统盘分区（GPT + EFI + root）
