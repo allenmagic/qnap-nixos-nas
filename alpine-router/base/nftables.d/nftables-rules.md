@@ -119,8 +119,7 @@
 
 说明：
 
-- IPv4 SYN Flood 规则排除了 `WG_PORT` 和 `TS_PORT`，但这两个端口本身是 UDP 端口，因此该排除条件对 TCP 实际影响很小。
-- IPv6 SYN Flood 规则未做端口排除，直接按新建 TCP SYN 限流。
+- IPv4 / IPv6 两条 SYN Flood 规则保持一致，均直接按新建 TCP SYN 限流（旧版 v4 规则中的 `WG_PORT`/`TS_PORT` 排除是 UDP 端口，对 TCP 规则无意义，已移除）。
 - 黑名单超时时间为 `1h`。
 
 ### ICMP 允许策略

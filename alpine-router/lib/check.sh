@@ -38,7 +38,7 @@ check_system() {
         fi
     }
     echo "[check] 配置占位符:"
-    for _f_ in /etc/dnsmasq.d/*.conf /etc/nftables.d/*.nft; do
+    for _f_ in /etc/dnsmasq.conf /etc/dnsmasq.d/*.conf /etc/nftables.d/*.nft; do
         [ -f "$_f_" ] && _check_no_placeholder "$_f_"
     done
 

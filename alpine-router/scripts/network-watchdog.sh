@@ -44,7 +44,8 @@ check_and_restart() {
     fi
 
     # 检测 LAN（检查接口是否有配置的 IP）
-    if ip addr show "$LAN_IF" 2>/dev/null | grep -q "inet $LAN_IP"; then
+    # 注意锚定 "/"，避免 192.168.8.1 误匹配 192.168.8.10/192.168.8.100
+    if ip addr show "$LAN_IF" 2>/dev/null | grep -q "inet ${LAN_IP}/"; then
         lan_ok=1
     fi
 
@@ -121,13 +122,13 @@ check_and_restart() {
 
     # 验证恢复
     if ping -c "$PING_COUNT" -W "$PING_TIMEOUT" "$PING_TARGET" >/dev/null 2>&1 && \
-       ip addr show "$LAN_IF" 2>/dev/null | grep -q "inet $LAN_IP"; then
+       ip addr show "$LAN_IF" 2>/dev/null | grep -q "inet ${LAN_IP}/"; then
         log "[INFO] WAN + LAN 已恢复"
     else
         if ! ping -c "$PING_COUNT" -W "$PING_TIMEOUT" "$PING_TARGET" >/dev/null 2>&1; then
             log "[ERROR] WAN 重启后仍断网"
         fi
-        if ! ip addr show "$LAN_IF" 2>/dev/null | grep -q "inet $LAN_IP"; then
+        if ! ip addr show "$LAN_IF" 2>/dev/null | grep -q "inet ${LAN_IP}/"; then
             log "[ERROR] LAN 重启后仍异常"
         fi
     fi

@@ -56,7 +56,7 @@ sops secrets/secrets.yaml                         # 编辑加密密钥（需要 
 ## ⚠️ 当前状态与坑
 
 1. **内网网段为 `192.168.8.0/24`，且在多个文件硬编码**：`bridges.nix`（宿主机 IP/网关）、`samba.nix`（hosts allow）、`nfs.nix`（exports）、`syncthing.nix`（guiAddress）、`navidrome.nix`（绑定地址）、`alpine-router.nix` 常量（install.sh 默认值、Tailscale advertise-routes）。修改网段时必须全局同步这些位置，否则服务绑定错 IP 或防火墙/共享拒绝访问。
-2. `configuration.nix` imports 的 `./hardware-configuration.nix` **不在仓库中**（被 gitignore，忽略规则为根目录下的 `/hardware-configuration.nix`）。安装时由 `nixos-generate-config --root /mnt` 生成，复制到仓库根目录；`hardware-configuration.nix.example` 是占位模板。**flake 求值只能看到 git 跟踪的文件**——生成该文件后必须执行 `git add -N -f hardware-configuration.nix`（intent-to-add），否则 `nixos-rebuild --flake` 报 "not tracked by Git"。
+2. `hardware-configuration.nix` 被 `.gitignore` 忽略（规则 `/hardware-configuration.nix`），但当前已通过 `git add -N -f` 以 intent-to-add 状态暂存——**内容仍是占位模板**（空 kernelModules），不能用于真实安装。安装时用 `nixos-generate-config --root /mnt` 生成真实配置**覆盖**它并保持 intent-to-add 状态；`hardware-configuration.nix.example` 是占位模板。**flake 求值只能看到 git 跟踪的文件**——未暂存时 `nixos-rebuild --flake` 报 "not tracked by Git"。
 3. `secrets/secrets.yaml` 尚不存在。sops 模块引用了它但 `secrets` 集合为空；在 `modules/security/sops.nix` 中取消注释 secret 定义前，须先按 `secrets/README.md` 生成 age 密钥并创建加密文件。
 4. `modules/users/nas-user.nix` 的 SSH 公钥是占位注释——无任何密钥则无法 SSH 登录（密码登录已禁用）。`wheelNeedsPassword = true`。
 5. `disks.nix` 的 `boot.swraid.mdadmConf` 为空占位，首次安装需填入 `mdadm --detail --scan` 的输出。

@@ -65,8 +65,8 @@ table inet filter {
         iifname @wan_interfaces udp dport $TS_PORT accept;
 
         # 超限流量：记录日志并加入黑名单后丢弃
+        # （v4/v6 规则一致，直接按新建 TCP SYN 限流；WG/TS 是 UDP 端口，不参与 TCP 规则）
         iifname @wan_interfaces ct state new tcp flags syn \
-            tcp dport != { $WG_PORT, $TS_PORT } \
             limit rate over 100/second burst 200 packets \
             log prefix "WAN_SYN_FLOOD_v4: " \
             add @flood_blacklist_v4 { ip saddr } \

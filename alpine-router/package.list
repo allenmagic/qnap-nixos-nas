@@ -3,7 +3,7 @@
 #
 # 语法：
 #   [pm] <package>                —— 包管理器安装（apk add）
-#   [dl@<url>] <binary_name>      —— 下载 URL 到 /usr/local/bin/<binary_name>
+#   [dl@<url>] <binary> [sha256]  —— 下载 URL 到 /usr/local/bin/<binary>，可选 sha256 校验
 #
 # 由 install.sh → lib/packages.sh 解析执行
 # ============================================================
@@ -28,4 +28,5 @@
 [pm] dnsmasq
 [pm] tailscale
 # cloudflared 官方 linux-amd64 为静态编译，不区分 glibc/musl，可直接在 Alpine 上运行
-[dl@https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64] cloudflared
+# 固定版本 + sha256 校验（不要用 latest，避免供应链风险）
+[dl@https://github.com/cloudflare/cloudflared/releases/download/2026.7.3/cloudflared-linux-amd64] cloudflared 9d71c677db00134c1bd4144b7783486b654ad281b1ea62b4972098d19f770f17

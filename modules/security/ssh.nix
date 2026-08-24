@@ -23,8 +23,9 @@
     # 监听端口（默认 22）
     ports = [ 22 ];
 
-    # 打开防火墙（已在 network/default.nix 中配置）
-    openFirewall = true;
+    # 不在全局放行 22 端口：br-lan 已在 network/default.nix 显式放行，
+    # openFirewall = true 会把 22 加到全局 allowedTCPPorts（作用于 br-wan 等所有接口）
+    openFirewall = false;
   };
 
   # SSH 密钥管理

@@ -1,5 +1,13 @@
 { config, pkgs, ... }:
 
+let
+  # 遍历所有块设备做 SMART 健康检查（不硬编码 /dev/sda，避免设备名漂移或漏检 RAID 成员盘）
+  smart-health-check = pkgs.writeShellScriptBin "smart-health-check" ''
+    for _d_ in $(${pkgs.util-linux}/bin/lsblk -dn -o PATH); do
+      ${pkgs.smartmontools}/bin/smartctl --all --json "$_d_" || true
+    done
+  '';
+in
 {
   # SMART 磁盘监控
   services.smartd = {
@@ -21,12 +29,12 @@
     };
   };
 
-  # 定期检查磁盘健康
+  # 定期检查磁盘健康（遍历全部块设备）
   systemd.services.smart-health-check = {
     description = "Check disk SMART health";
     serviceConfig = {
       Type = "oneshot";
-      ExecStart = "${pkgs.smartmontools}/bin/smartctl --all --json /dev/sda";
+      ExecStart = "${smart-health-check}/bin/smart-health-check";
     };
   };
 

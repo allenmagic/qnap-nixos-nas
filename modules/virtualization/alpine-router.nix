@@ -39,6 +39,9 @@ let
         --replace-fail '__LAN_NETMASK__' ${lanNetmask} \
         --replace-fail '__DHCP_LEASE_TIME__' ${dhcpLeaseTime}
 
+      substituteInPlace base/dnsmasq.conf \
+        --replace-fail '__LAN_IFACE__' ${lanIface}
+
       substituteInPlace base/tailscale/config.json \
         --replace-fail '__TS_HOSTNAME__' ${tsHostname} \
         --replace-fail '__TS_ADVERTISE_ROUTES__' '"${lanNet}"'
@@ -104,9 +107,9 @@ in
         echo "Note: $ENV_FILE not found, deploying without secrets"
       fi
 
-      # 执行安装脚本
+      # 执行安装脚本（结束后清理 /tmp 中的 tarball 和明文密钥 env 文件，保留退出码）
       echo "Running install.sh on VM..."
-      ssh "root@$VM_IP" 'rm -rf /tmp/alpine-router-deploy && mkdir -p /tmp/alpine-router-deploy && cd /tmp/alpine-router-deploy && tar xzf /tmp/alpine-router-deploy.tar.gz && if [ -f /tmp/alpine-router.env ]; then mv /tmp/alpine-router.env ./env; fi && sh install.sh'
+      ssh "root@$VM_IP" 'rm -rf /tmp/alpine-router-deploy && mkdir -p /tmp/alpine-router-deploy && cd /tmp/alpine-router-deploy && tar xzf /tmp/alpine-router-deploy.tar.gz && if [ -f /tmp/alpine-router.env ]; then mv /tmp/alpine-router.env ./env; fi; sh install.sh; _rc=$?; rm -f /tmp/alpine-router-deploy.tar.gz /tmp/alpine-router.env; exit $_rc'
 
       echo "Deployment complete!"
     '')

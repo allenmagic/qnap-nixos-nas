@@ -19,8 +19,10 @@
     settings = {
       gui = {
         user = "nas";
-        # 密码需要在首次启动后通过 Web UI 设置
-        # 或使用 sops-nix 管理加密密码
+        # ⚠️ 未设置密码时 8384 对 br-lan 完全开放，任何内网设备都可控制同步/删除文件。
+        # 建议任选其一：
+        #   1. password = "..."        （明文写入 nix store，首次启动后被哈希）
+        #   2. services.syncthing.guiPasswordFile = "/run/secrets/..."  （配合 sops-nix，更安全）
       };
 
       options = {

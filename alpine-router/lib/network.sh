@@ -10,7 +10,7 @@
 
 # 占位符兜底替换（主替换已在 Nix 构建时完成，此处保证运行时覆盖生效）
 _replace_placeholders() {
-    for _f_ in /etc/dnsmasq.d/*.conf; do
+    for _f_ in /etc/dnsmasq.conf /etc/dnsmasq.d/*.conf; do
         [ -f "${_f_}" ] || continue
         sed -i \
             -e "s|__LAN_IFACE__|${LAN_IFACE}|g" \

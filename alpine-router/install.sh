@@ -65,6 +65,8 @@ install_packages "${SCRIPT_DIR}/package.list"
 # ============================================================
 log_info "部署配置文件..."
 
+# 注意：不使用 --delete！/etc/init.d、/etc/conf.d 等目录里还有系统自带文件
+# （sshd、networking 等），--delete 会把它们全部删掉导致系统损坏。
 sync_dir() {
     _src="$1"; _dest="$2"
     if [ -d "${_src}" ]; then
@@ -99,8 +101,9 @@ chmod +x /etc/local.d/*.start 2>/dev/null || true
 # 运行时脚本 → /usr/local/bin/
 install -m 0755 "${SCRIPT_DIR}/scripts/network-watchdog.sh" /usr/local/bin/network-watchdog
 
-# 清理文档/示例文件
-find /etc \( -name '*.md' -o -name '*.example' \) -exec rm -f {} + 2>/dev/null || true
+# 清理部署目录中的文档/示例文件（只限部署目录，避免误删系统文件）
+find /etc/dnsmasq.d /etc/nftables.d /etc/sysctl.d /etc/tailscale \
+    \( -name '*.md' -o -name '*.example' \) -exec rm -f {} + 2>/dev/null || true
 
 # ============================================================
 # 3. 网络配置（占位符兜底替换 + 生成 interfaces）
@@ -109,17 +112,20 @@ find /etc \( -name '*.md' -o -name '*.example' \) -exec rm -f {} + 2>/dev/null |
 configure_network
 
 # ============================================================
-# 4. 内核参数与模块
+# 4. 内核模块与参数（先加载模块再应用 sysctl，否则 BBR/conntrack 等键不存在）
 # ============================================================
-log_info "应用 sysctl 参数..."
-sysctl -p /etc/sysctl.d/*.conf 2>/dev/null || true
-
 log_info "加载内核模块..."
 for _conf_ in /etc/modules-load.d/*.conf; do
     [ -f "${_conf_}" ] || continue
     while read -r _mod_; do
         [ -n "${_mod_}" ] && [ "${_mod_#\#}" = "${_mod_}" ] && modprobe "${_mod_}" 2>/dev/null || true
     done < "${_conf_}"
+done
+
+log_info "应用 sysctl 参数..."
+# 逐个文件应用；-e 忽略不存在的键（busybox sysctl 不支持 systemd 的 "-" 前缀语法）
+for _f_ in /etc/sysctl.d/*.conf; do
+    [ -f "${_f_}" ] && sysctl -e -p "${_f_}" 2>/dev/null || true
 done
 
 # ============================================================
