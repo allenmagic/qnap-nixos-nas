@@ -25,8 +25,9 @@
 
   # 安装 VM 命令行管理工具
   # （图形界面工具已移除，改用 Cockpit Web UI，见 ./cockpit.nix）
+  # 注意：libguestfs 已移除（~2.4GiB，Cockpit/virsh 不需要它；它是"不开机修改
+  # 磁盘镜像"的救援工具，需要时用 `nix-shell -p libguestfs` 临时使用）
   environment.systemPackages = with pkgs; [
-    libguestfs
     cloud-utils
   ];
 }
