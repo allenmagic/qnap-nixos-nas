@@ -27,8 +27,7 @@
     parted
     gptfdisk
     e2fsprogs
-    xfsprogs
-    mdadm
+    btrfs-progs
 
     # 监控工具
     lm_sensors

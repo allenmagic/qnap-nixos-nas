@@ -68,21 +68,17 @@
 2. 制作启动 U 盘
 3. 仅插入 256GB SSD，从 U 盘启动
 
-### 2. 磁盘分区和 RAID 创建
+### 2. 磁盘分区和文件系统创建
 
 ```bash
-# 创建 RAID1（使用两块 3TB HDD）
-mdadm --create /dev/md0 --level=1 --raid-devices=2 \
+# 数据盘：Btrfs 原生 RAID1（两块 3TB HDD，内建 checksum + 每月自动 scrub）
+mkfs.btrfs -m raid1 -d raid1 -L data \
   /dev/disk/by-id/ata-WDC_WD30EFRX-xxx \
   /dev/disk/by-id/ata-WDC_WD30EFRX-yyy
 
-# 格式化磁盘
-mkfs.xfs -L data /dev/md0
+# 缓存/备份盘
 mkfs.ext4 -L cache /dev/disk/by-id/ata-KINGSTON_SA400S37480G-xxx
 mkfs.ext4 -L backup /dev/disk/by-id/ata-ST2000LM007-xxx
-
-# 记录 RAID UUID
-mdadm --detail --scan
 ```
 
 ### 3. 安装 NixOS
@@ -230,9 +226,9 @@ sensors
 # 查看磁盘 SMART 状态
 sudo smartctl -a /dev/sda
 
-# 查看 RAID 状态
-cat /proc/mdstat
-sudo mdadm --detail /dev/md0
+# 查看 Btrfs RAID 状态
+btrfs filesystem show
+btrfs device stats /srv/data
 ```
 
 ## 自定义配置
@@ -291,16 +287,15 @@ dmesg | grep qnap8528
 sudo modprobe qnap8528
 ```
 
-### RAID 未自动组装
+### 数据卷未自动挂载
 
 ```bash
-# 手动组装
-sudo mdadm --assemble --scan
+# 重新扫描并挂载
+sudo btrfs device scan
+sudo mount /srv/data
 
-# 检查 /etc/mdadm.conf
-cat /etc/mdadm.conf
-
-# 更新 disks.nix 中的 mdadmConf
+# 确认卷标与 disks.nix 一致
+btrfs filesystem show
 ```
 
 ### Alpine VM 网络问题

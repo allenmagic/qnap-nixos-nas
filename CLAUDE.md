@@ -51,7 +51,7 @@ sops secrets/secrets.yaml                         # 编辑加密密钥（需要 
 
 - QNAP 硬件支持来自 flake input `qnap8528`；风扇配置在**求值时**直接读取外部仓库：`builtins.readFile "${inputs.qnap8528}/examples/fancontrol.conf"`（`modules/hardware/fancontrol.nix`）——修改该仓库会影响本配置。
 - sops-nix：age 私钥位于 `/var/lib/sops-nix/key.txt`，`defaultSopsFile` 指向 `secrets/secrets.yaml`（见 `modules/security/sops.nix`）。
-- 磁盘按 label 挂载（`disks.nix`）：`nixos`/`boot`（系统盘）、`/srv/data`（md0 RAID1 XFS）、`/srv/cache`、`/srv/backup`。mdadmConf 是空占位符，实际 RAID UUID 需安装时填入。
+- 磁盘按 label 挂载（`disks.nix`）：`nixos`/`boot`（系统盘）、`/srv/data`（**Btrfs 原生 RAID1**，无 mdadm，卷标 `data`，每月自动 scrub）、`/srv/cache`、`/srv/backup`。
 
 ## ⚠️ 当前状态与坑
 
@@ -59,7 +59,7 @@ sops secrets/secrets.yaml                         # 编辑加密密钥（需要 
 2. `hardware-configuration.nix` 被 `.gitignore` 忽略（规则 `/hardware-configuration.nix`），但当前已通过 `git add -N -f` 以 intent-to-add 状态暂存——**内容仍是占位模板**（空 kernelModules），不能用于真实安装。安装时用 `nixos-generate-config --root /mnt` 生成真实配置**覆盖**它并保持 intent-to-add 状态；`hardware-configuration.nix.example` 是占位模板。**flake 求值只能看到 git 跟踪的文件**——未暂存时 `nixos-rebuild --flake` 报 "not tracked by Git"。
 3. `secrets/secrets.yaml` 尚不存在。sops 模块引用了它但 `secrets` 集合为空；在 `modules/security/sops.nix` 中取消注释 secret 定义前，须先按 `secrets/README.md` 生成 age 密钥并创建加密文件。
 4. `modules/users/nas-user.nix` 的 SSH 公钥是占位注释——无任何密钥则无法 SSH 登录（密码登录已禁用）。`wheelNeedsPassword = true`。
-5. `disks.nix` 的 `boot.swraid.mdadmConf` 为空占位，首次安装需填入 `mdadm --detail --scan` 的输出。
+5. 数据盘为 Btrfs 原生 RAID1（无 mdadm）：`mkfs.btrfs -m raid1 -d raid1 -L data` 创建，挂载靠卷标，多设备由内核自动组装；`services.btrfs.autoScrub` 每月自动校验修复。
 6. `modules/security/sops.nix` 中 `defaultSopsFile = ../../secrets/secrets.yaml` 是相对路径——移动该文件时必须同步改路径。
 7. **Cockpit 登录需要系统密码**：cockpit 本地登录走 PAM 密码认证，而 `nas` 用户 `hashedPassword = "!"`（`modules/users/nas-user.nix`）。要用 Cockpit 必须先给 nas（或专用用户）设系统密码：`mkpasswd -m sha-512` 生成哈希后填入。SSH 仍只允许密钥登录，不受影响。
 8. `alpine-router/` 中的 `__XXX__` 占位符（base/ 配置、install.sh 网络默认值、tailscale config.json）在 **Nix 构建时替换**（`modules/virtualization/alpine-router.nix` 的 postPatch），网络参数常量在同文件 `let` 块中，**修改网段时必须与 `bridges.nix` 同步**。R3S 遗留：`PROXY_SERVER_IP`（nftables vars 中被防火墙规则引用）、`local.d/99-hw-tweak.start`（R3S 网卡调优，VM 中无实际效果）。

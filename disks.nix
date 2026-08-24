@@ -1,24 +1,15 @@
 { config, lib, ... }:
 
 {
-  # 启用 mdadm 软 RAID 支持
-  boot.swraid = {
-    enable = true;
-    # mdadm.conf 配置（首次安装后需要填写实际的 UUID）
-    mdadmConf = ''
-      # ARRAY /dev/md0 level=raid1 num-devices=2 UUID=<your-uuid-here>
-      # 使用 mdadm --detail --scan 获取实际配置
-
-      # 必须设置 MAILADDR 或 PROGRAM，否则 mdmon 服务会崩溃
-      MAILADDR root
-    '';
-  };
-
-  # 文件系统挂载点
+  # 数据盘使用 Btrfs 原生 RAID1（不用 mdadm）：数据带 checksum，
+  # 定期 scrub 可检测并自动修复静默损坏；多设备由内核自动组装，无需 ARRAY 配置。
+  #
   # 注意：device/fsType 用 lib.mkForce —— nixos-generate-config 生成的
   # hardware-configuration.nix 会以 by-uuid 声明 / 与 /boot 等挂载点，
   # 与本仓库的 by-label 定义冲突（error: conflicting definition values）。
   # 本仓库以 label 为唯一约定（INSTALL.md 创建磁盘时按此打标），故强制覆盖。
+
+  # 文件系统挂载点
   fileSystems = {
     # 系统盘（256GB SSD）
     "/" = {
@@ -31,10 +22,11 @@
       fsType = lib.mkForce "vfat";
     };
 
-    # 数据盘（2×3TB HDD RAID1）
+    # 数据盘（2×3TB HDD，Btrfs 原生 RAID1）
+    # device 指向任一成员的卷标即可，内核自动发现并组装全部成员
     "/srv/data" = {
-      device = lib.mkForce "/dev/md0";
-      fsType = lib.mkForce "xfs";
+      device = lib.mkForce "/dev/disk/by-label/data";
+      fsType = lib.mkForce "btrfs";
       options = [ "defaults" "noatime" ];
     };
 
@@ -57,6 +49,13 @@
   services.fstrim = {
     enable = true;
     interval = "weekly";
+  };
+
+  # Btrfs 数据卷：每月自动 scrub（校验数据完整性，自动修复 RAID1 损坏副本）
+  services.btrfs.autoScrub = {
+    enable = true;
+    fileSystems = [ "/srv/data" ];
+    interval = "monthly";
   };
 
   # Swap 配置（可选，8GB 内存可能不需要）

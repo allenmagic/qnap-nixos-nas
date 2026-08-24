@@ -74,16 +74,18 @@ mkfs.fat -F 32 -n boot /dev/sda1
 mkfs.ext4 -L nixos /dev/sda2
 ```
 
-### 2.2 数据盘 RAID1
+### 2.2 数据盘 Btrfs 原生 RAID1
 
 ```bash
 # 用 by-id 更稳妥（ls /dev/disk/by-id/ 确认）
-mdadm --create /dev/md0 --level=1 --raid-devices=2 \
+# Btrfs 内建 RAID1（-m raid1 -d raid1），不需要 mdadm；
+# 数据带 checksum，配合每月自动 scrub 可检测并修复静默损坏
+mkfs.btrfs -m raid1 -d raid1 -L data \
   /dev/disk/by-id/ata-WDC_WD30EFRX-xxx \
   /dev/disk/by-id/ata-WDC_WD30EFRX-yyy
-
-mkfs.xfs -L data /dev/md0
 ```
+
+无需记录任何 UUID——Btrfs 卷按卷标挂载，多设备成员由内核自动发现组装。
 
 ### 2.3 缓存盘与备份盘
 
@@ -91,16 +93,6 @@ mkfs.xfs -L data /dev/md0
 mkfs.ext4 -L cache /dev/sdd
 mkfs.ext4 -L backup /dev/sde
 ```
-
-### 2.4 记录 RAID 配置（关键！）
-
-```bash
-mdadm --detail --scan
-# 输出形如：
-# ARRAY /dev/md0 level=raid1 num-devices=2 metadata=1.2 UUID=xxxxxxxx:xxxxxxxx:...
-```
-
-把 `ARRAY` 这一行记下来，第 3 步要填入 `disks.nix`，否则重启后 RAID 不会自动组装。
 
 ## 3. 安装 NixOS
 
@@ -130,16 +122,7 @@ mv /tmp/hardware-configuration.nix .
 git add -N -f hardware-configuration.nix
 ```
 
-### 3.3 必改的两处配置
-
-**`disks.nix`**：填入第 2.4 步记录的 ARRAY 行：
-
-```nix
-mdadmConf = ''
-  ARRAY /dev/md0 level=raid1 num-devices=2 metadata=1.2 UUID=xxxxxxxx:xxxxxxxx:...
-  MAILADDR root
-'';
-```
+### 3.3 必改的配置
 
 **`modules/users/nas-user.nix`**：填入你的 SSH 公钥：
 
@@ -148,6 +131,8 @@ openssh.authorizedKeys.keys = [
   "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... you@laptop"
 ];
 ```
+
+> Btrfs 数据卷无需任何 UUID 配置——挂载靠卷标（label），多设备成员由内核自动组装。
 
 ### 3.4 安装
 
@@ -205,7 +190,8 @@ sudo nixos-rebuild switch --flake .#default
 # 4. 硬件检查
 lsmod | grep qnap8528
 sensors
-cat /proc/mdstat            # RAID 应已自动组装
+btrfs filesystem show          # 数据卷 RAID1 应显示两块成员盘
+btrfs device stats /srv/data   # 校验错误计数应为 0
 ```
 
 ## 5. 创建 Alpine 路由 VM
@@ -315,7 +301,7 @@ sudo virsh dumpxml alpine-router > /srv/data/alpine-router.xml
 
 ## 8. 验收清单
 
-- [ ] 重启 NAS 后 RAID1（`/dev/md0`）自动组装
+- [ ] 重启 NAS 后 Btrfs RAID1 数据卷自动挂载（`btrfs filesystem show` 显示两个成员）
 - [ ] br-lan 客户端自动获取 DHCP 地址，外网与 DNS 正常
 - [ ] Samba 共享可挂载（`\\192.168.8.2\data`，用户名 nas）
 - [ ] NFS、Syncthing(8384)、Navidrome(4533) 端口可达
@@ -340,7 +326,7 @@ sudo virsh dumpxml alpine-router > /srv/data/alpine-router.xml
 
 | 现象 | 处理 |
 |---|---|
-| 重启后 RAID 未组装 | `sudo mdadm --assemble --scan`，确认 disks.nix 的 mdadmConf ARRAY 行 |
+| 重启后数据卷未挂载 | `btrfs device scan && mount /srv/data`；确认 disks.nix 卷标与 `mkfs.btrfs -L` 一致 |
 | flake 报 not tracked by Git | `git add -N -f hardware-configuration.nix` |
 | VM 无法启动 | `sudo virsh list --all`、`sudo virsh console alpine-router` |
 | DHCP 客户端拿不到地址 | VM 内检查 `rc-service dnsmasq status`、`cat /etc/dnsmasq.d/10-dhcp-eth1.conf` |

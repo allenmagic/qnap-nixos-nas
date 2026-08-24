@@ -38,16 +38,12 @@ parted /dev/sda -- mkpart primary ext4 512MiB 100%
 mkfs.fat -F 32 -n boot /dev/sda1
 mkfs.ext4 -L nixos /dev/sda2
 
-# 2.2 数据盘 RAID1
-mdadm --create /dev/md0 --level=1 --raid-devices=2 /dev/sdb /dev/sdc
-mkfs.xfs -L data /dev/md0
+# 2.2 数据盘 Btrfs 原生 RAID1（不需要 mdadm，也无需记录 ARRAY 配置）
+mkfs.btrfs -m raid1 -d raid1 -L data /dev/sdb /dev/sdc
 
 # 2.3 缓存/备份盘
 mkfs.ext4 -L cache /dev/sdd
 mkfs.ext4 -L backup /dev/sde
-
-# 2.4 记录 ARRAY 行（下一步填 disks.nix）
-mdadm --detail --scan
 ```
 
 ## 3. 挂载 + 克隆仓库
@@ -69,10 +65,9 @@ mv /tmp/hardware-configuration.nix .
 git add -N -f hardware-configuration.nix   # flake 只能读 git 跟踪的文件
 
 # 3.3 必改/可选改动
-# a) disks.nix：填入 2.4 的 ARRAY 行（mdadmConf）
-# b) modules/users/nas-user.nix：填 SSH 公钥（可选；不填只能控制台 root 登录）
-# c) 想装完有网：modules/network/bridges.nix 接口名 eno1→enp0s3、eno2→enp0s8
-# d) ⚠️ VM 特有必删：生成的 hardware-configuration.nix 检测到 VirtualBox 会自动加
+# a) modules/users/nas-user.nix：填 SSH 公钥（可选；不填只能控制台 root 登录）
+# b) 想装完有网：modules/network/bridges.nix 接口名 eno1→enp0s3、eno2→enp0s8
+# c) ⚠️ VM 特有必删：生成的 hardware-configuration.nix 检测到 VirtualBox 会自动加
 #    virtualisation.virtualbox.guest.enable = true;，要求为当前内核编译 Guest Additions
 #    模块，编译失败会拖垮整个 linux-modules 闭包导致安装失败。VM 测试不需要它：
 sed -i '/virtualbox.guest/d' hardware-configuration.nix
@@ -95,7 +90,8 @@ reboot   # 重启前移除 ISO / 调整启动顺序
 ## 5. 重启验证
 
 ```bash
-cat /proc/mdstat                    # RAID 应已组装（填了 ARRAY 行）
+btrfs filesystem show              # 数据卷 RAID1 应显示两块成员盘
+btrfs device stats /srv/data       # 校验错误计数应为 0
 lsblk                               # 挂载正常
 journalctl -b | grep qnap8528       # 无硬件报错是预期
 ip a                                # 改过 bridges.nix 则有网络配置
@@ -108,6 +104,6 @@ ip a                                # 改过 bridges.nix 则有网络配置
 | `could not find a flake.nix file` | 3.2 的 clone 因目录非空失败；或用了相对路径 `.#default` 但不在仓库目录。重做 3.2，且用绝对路径 `/mnt/etc/nixos#default` |
 | `echo >> /etc/nix/nix.conf` 报 Read-only file system | ISO 上该文件是指向 store 的符号链接；用 `--option` 或 `~/.config/nix/nix.conf` |
 | flake 报 not tracked by Git | 未 `git add -N -f hardware-configuration.nix` |
-| 重启后 RAID 未组装 | disks.nix 的 mdadmConf 缺 ARRAY 行 |
+| 重启后数据卷未挂载 | `btrfs device scan && mount /srv/data`；确认卷标与 disks.nix 一致 |
 | qnap8528 模块加载失败 | VM 无 QNAP EC 硬件，预期现象 |
 | `VirtualBox-GuestAdditions` 构建失败，linux-modules 闭包连锁报错 | 生成的 hardware-configuration.nix 带 `virtualisation.virtualbox.guest.enable = true;`；删除该行再重装（VM 测试不需要 Guest Additions） |
