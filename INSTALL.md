@@ -164,7 +164,7 @@ reboot
   ssh nas@192.168.8.2    # 用第 3.3 步配置的密钥
   ```
 
-- **方案 B**：HDMI 接显示器 + USB 键盘，控制台用 root 登录（第 3.4 步设的密码）
+- **方案 B**：HDMI 接显示器 + USB 键盘，控制台用 root 登录（第 3.4 步设的密码）。控制台已启用 kmscon + Noto Sans CJK 字体（`modules/system/console.nix`），可正常显示中文；若开机后 TTY 无显示，说明 i915 DRM 初始化异常，排查 `journalctl -u kmsconvt@tty1`。
 
 **登录后依次执行**：
 
