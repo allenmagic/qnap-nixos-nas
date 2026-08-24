@@ -319,7 +319,7 @@ sudo virsh dumpxml alpine-router > /srv/data/alpine-router.xml
 - [ ] br-lan 客户端自动获取 DHCP 地址，外网与 DNS 正常
 - [ ] Samba 共享可挂载（`\\192.168.8.2\data`，用户名 nas）
 - [ ] NFS 共享可挂载（`mount -t nfs -o vers=4 192.168.8.2:/ /mnt`，应看到 data/cache/backup 三个目录）
-- [ ] Syncthing(8384)、Navidrome(4533) 端口可达
+- [ ] Syncthing(8384)、Navidrome(4533)、Feishin(9180) 端口可达
 - [ ] Cockpit 登录正常，虚拟机管理可用
 - [ ] 宿主 `sensors` 有风扇/温度读数，qnap8528 模块已加载
 
@@ -336,6 +336,7 @@ sudo virsh dumpxml alpine-router > /srv/data/alpine-router.xml
 | NFS | 2049 |
 | Syncthing | 8384（UI）/ 22000（同步） |
 | Navidrome | 4533 |
+| Feishin | 9180 |
 
 ## 附录 B：故障排查
 

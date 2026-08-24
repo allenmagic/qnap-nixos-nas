@@ -5,7 +5,7 @@
     ./samba.nix
     ./nfs.nix
     ./syncthing.nix
-    ./navidrome.nix
+    ./music.nix
     ./cockpit.nix
   ];
 }
