@@ -58,6 +58,8 @@ ping -c 3 8.8.8.8
 
 ## 2. 磁盘分区与 RAID 创建
 
+> 本节及之后所有命令都需要 root 权限：进入安装环境后先执行 `sudo -i`（ISO 的 `nixos` 用户免密 sudo），之后的命令无需再加 sudo。
+
 先用 `lsblk` 确认磁盘名（本文假设：`/dev/sda`=256GB 系统盘、`/dev/sdb` `/dev/sdc`=3TB×2、`/dev/sdd`=1TB 缓存、`/dev/sde`=2TB 备份）。
 
 ### 2.1 系统盘分区（GPT + EFI + root）
@@ -116,8 +118,13 @@ nixos-generate-config --root /mnt
 
 ```bash
 cd /mnt/etc/nixos
+# nixos-generate-config 已在此生成 configuration.nix + hardware-configuration.nix，
+# 目录非空会导致 git clone 失败——先把生成的真硬件配置移出去、删掉生成版配置
+mv hardware-configuration.nix /tmp/hardware-configuration.nix
+rm configuration.nix
+
 git clone https://github.com/allenmagic/qnap-nixos-nas.git .
-mv hardware-configuration.nix .
+mv /tmp/hardware-configuration.nix .
 
 # 关键：flake 只能读取 git 跟踪的文件
 git add -N -f hardware-configuration.nix
@@ -148,11 +155,17 @@ openssh.authorizedKeys.keys = [
 # 国内网络建议带 TUNA 镜像安装：安装阶段的下载由 ISO 里的 nix 完成，
 # 目标系统的 nix-settings.nix（TUNA 优先）要等装完激活后才生效，
 # 所以这里必须显式传 --option（ISO 上是 root，substituter 会被接受）。
-nixos-install --flake .#default \
+# 用仓库绝对路径作为 flake 引用（当前目录不含 flake.nix 时会报
+# "could not find a flake.nix file"，绝对路径可避免该坑）。
+nixos-install --flake /mnt/etc/nixos#default \
   --option substituters "https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store https://cache.nixos.org/"
 # 安装器会提示设置 root 密码 —— 设置并记住（仅控制台登录用，SSH 已禁 root 密码登录）
 
-# 备选：在安装环境（root）里 echo 'substituters = ...' >> /etc/nix/nix.conf 后直接 nixos-install
+# 备选：写 root 用户级 nix 配置后直接 nixos-install（不要改 /etc/nix/nix.conf——
+# ISO 上它是指向只读 store 的符号链接，echo >> 会报 Read-only file system）：
+#   mkdir -p ~/.config/nix
+#   echo 'substituters = https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store https://cache.nixos.org/' >> ~/.config/nix/nix.conf
+#   nixos-install --flake .#default
 
 reboot
 # 拔掉 U 盘

@@ -15,36 +15,40 @@
   };
 
   # 文件系统挂载点
+  # 注意：device/fsType 用 lib.mkForce —— nixos-generate-config 生成的
+  # hardware-configuration.nix 会以 by-uuid 声明 / 与 /boot 等挂载点，
+  # 与本仓库的 by-label 定义冲突（error: conflicting definition values）。
+  # 本仓库以 label 为唯一约定（INSTALL.md 创建磁盘时按此打标），故强制覆盖。
   fileSystems = {
     # 系统盘（256GB SSD）
     "/" = {
-      device = "/dev/disk/by-label/nixos";
-      fsType = "ext4";
+      device = lib.mkForce "/dev/disk/by-label/nixos";
+      fsType = lib.mkForce "ext4";
     };
 
     "/boot" = {
-      device = "/dev/disk/by-label/boot";
-      fsType = "vfat";
+      device = lib.mkForce "/dev/disk/by-label/boot";
+      fsType = lib.mkForce "vfat";
     };
 
     # 数据盘（2×3TB HDD RAID1）
     "/srv/data" = {
-      device = "/dev/md0";
-      fsType = "xfs";
+      device = lib.mkForce "/dev/md0";
+      fsType = lib.mkForce "xfs";
       options = [ "defaults" "noatime" ];
     };
 
     # 缓存盘（1TB SSD）
     "/srv/cache" = {
-      device = "/dev/disk/by-label/cache";
-      fsType = "ext4";
+      device = lib.mkForce "/dev/disk/by-label/cache";
+      fsType = lib.mkForce "ext4";
       options = [ "defaults" "noatime" ];
     };
 
     # 备份盘（2TB HDD）
     "/srv/backup" = {
-      device = "/dev/disk/by-label/backup";
-      fsType = "ext4";
+      device = lib.mkForce "/dev/disk/by-label/backup";
+      fsType = lib.mkForce "ext4";
       options = [ "defaults" "noatime" ];
     };
   };
