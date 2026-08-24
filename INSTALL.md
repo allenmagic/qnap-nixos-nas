@@ -78,9 +78,11 @@ curl -I https://github.com    # 验证代理可用后继续
 
 ```bash
 parted /dev/sda -- mklabel gpt
-parted /dev/sda -- mkpart ESP fat32 1MiB 512MiB
+# ESP 用 1GiB：NixOS 的 systemd-boot 会把每个 generation 的内核+initrd 都放这里，
+# 默认保留 10 个 generation，512MiB 偏紧，1GiB 留足余量
+parted /dev/sda -- mkpart ESP fat32 1MiB 1GiB
 parted /dev/sda -- set 1 esp on
-parted /dev/sda -- mkpart primary ext4 512MiB 100%
+parted /dev/sda -- mkpart primary ext4 1GiB 100%
 
 mkfs.fat -F 32 -n boot /dev/sda1
 mkfs.ext4 -L nixos /dev/sda2
@@ -316,7 +318,8 @@ sudo virsh dumpxml alpine-router > /srv/data/alpine-router.xml
 - [ ] 重启 NAS 后 Btrfs RAID1 数据卷自动挂载（`btrfs filesystem show` 显示两个成员）
 - [ ] br-lan 客户端自动获取 DHCP 地址，外网与 DNS 正常
 - [ ] Samba 共享可挂载（`\\192.168.8.2\data`，用户名 nas）
-- [ ] NFS、Syncthing(8384)、Navidrome(4533) 端口可达
+- [ ] NFS 共享可挂载（`mount -t nfs -o vers=4 192.168.8.2:/ /mnt`，应看到 data/cache/backup 三个目录）
+- [ ] Syncthing(8384)、Navidrome(4533) 端口可达
 - [ ] Cockpit 登录正常，虚拟机管理可用
 - [ ] 宿主 `sensors` 有风扇/温度读数，qnap8528 模块已加载
 
