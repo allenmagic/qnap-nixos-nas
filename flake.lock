@@ -37,11 +37,11 @@
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1787293039,
-        "narHash": "sha256-aG4BYw6lVPlAS0qH/x37lhimM1NNA6P9aUIYPVzWZQc=",
+        "lastModified": 1787561567,
+        "narHash": "sha256-vaUb3WAif+Z1nHUNa784AyChjrT+CbrEj7sEBmbki1k=",
         "owner": "allenmagic",
         "repo": "qnap8528",
-        "rev": "d2a5e335fa4b0eb23fd6a0957f8a3532dd3f0e14",
+        "rev": "b863b7af9677a1adb578b71950563de9a2c288fa",
         "type": "github"
       },
       "original": {

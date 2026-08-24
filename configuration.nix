@@ -1,4 +1,4 @@
-{ config, pkgs, lib, inputs, ... }:
+{ config, pkgs, lib, ... }:
 
 {
   imports = [
@@ -15,6 +15,8 @@
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
   # 启用 QNAP 硬件支持
+  # qnap8528 内核模块包由其模块自带的 overlay 注入 boot.kernelPackages
+  # （上游已修复 nixos-26.05 下 overlay 失效的问题，见 flake.lock 锁定的版本）
   hardware.qnap8528 = {
     enable = true;
     preserveLeds = true;

@@ -6,6 +6,12 @@
     settings = {
       experimental-features = [ "nix-command" "flakes" ];
 
+      # 国内镜像优先（清华 TUNA binary cache），官方源兜底
+      substituters = [
+        "https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store"
+        "https://cache.nixos.org"
+      ];
+
       # 自动优化存储
       auto-optimise-store = true;
 
