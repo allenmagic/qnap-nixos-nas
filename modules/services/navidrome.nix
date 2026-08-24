@@ -7,7 +7,7 @@
 
     settings = {
       # 音乐库路径
-      MusicFolder = "/srv/data/media/music";
+      MusicFolder = "/srv/data/music";
 
       # 数据存储路径
       DataFolder = "/var/lib/navidrome";
@@ -27,13 +27,8 @@
     };
   };
 
-  # 确保音乐目录存在
-  systemd.tmpfiles.rules = [
-    "d /srv/data/media 0755 nas nas -"
-    "d /srv/data/media/music 0755 nas nas -"
-  ];
-
   # Navidrome 服务以 navidrome 用户运行，给予访问音乐目录的权限
+  # （music 目录由 users/nas-user.nix 的 tmpfiles 统一创建）
   users.users.navidrome = {
     extraGroups = [ "nas" ];
   };

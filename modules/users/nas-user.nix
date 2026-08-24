@@ -35,6 +35,16 @@
     "d /srv/backup 0755 nas storage -"
     "d /srv/cache 0755 nas storage -"
     "d /srv/app 0755 nas storage -"
+
+    # /srv/data 下的默认数据分类目录（Samba/NFS 共享 data 时自动可见）
+    "d /srv/data/music 0755 nas nas -"
+    "d /srv/data/videos 0755 nas nas -"
+    "d /srv/data/photos 0755 nas nas -"
+    "d /srv/data/documents 0755 nas nas -"
+    "d /srv/data/downloads 0755 nas nas -"
+    "d /srv/data/projects 0755 nas nas -"
+    "d /srv/data/templates 0755 nas nas -"
+    "d /srv/data/models 0755 nas nas -"
   ];
 
   # sudo 配置（允许 wheel 组成员无密码执行 sudo）
