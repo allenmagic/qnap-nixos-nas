@@ -145,8 +145,14 @@ openssh.authorizedKeys.keys = [
 ### 3.4 安装
 
 ```bash
-nixos-install --flake .#default
+# 国内网络建议带 TUNA 镜像安装：安装阶段的下载由 ISO 里的 nix 完成，
+# 目标系统的 nix-settings.nix（TUNA 优先）要等装完激活后才生效，
+# 所以这里必须显式传 --option（ISO 上是 root，substituter 会被接受）。
+nixos-install --flake .#default \
+  --option substituters "https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store https://cache.nixos.org/"
 # 安装器会提示设置 root 密码 —— 设置并记住（仅控制台登录用，SSH 已禁 root 密码登录）
+
+# 备选：在安装环境（root）里 echo 'substituters = ...' >> /etc/nix/nix.conf 后直接 nixos-install
 
 reboot
 # 拔掉 U 盘
