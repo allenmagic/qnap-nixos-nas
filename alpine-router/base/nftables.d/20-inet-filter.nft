@@ -60,8 +60,7 @@ table inet filter {
         iifname @wan_interfaces ip6 saddr @flood_blacklist_v6 drop;
 
         # --------------- WAN 请求连接 ------------------------
-        # 允许 WireGuard/Tailscale 的 UDP 握手包建立隧道
-        iifname @wan_interfaces udp dport $WG_PORT accept;
+        # 允许 Tailscale 的 UDP 握手包建立隧道
         iifname @wan_interfaces udp dport $TS_PORT accept;
 
         # 超限流量：记录日志并加入黑名单后丢弃

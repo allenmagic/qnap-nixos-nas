@@ -20,23 +20,19 @@
 | --- | --- | --- |
 | 接口 | `WAN` | `eth0` |
 | 接口 | `LAN` | `eth1` |
-| 接口 | `WG` | `wg0` |
-| 接口 | `TS` | `ts0` |
+| 接口 | `TS` | `{ ts0, tailscale0 }` |
 | 接口 | `TUN` | `tun0` |
-| 端口 | `WG_PORT` | `51820` |
-| 端口 | `TS_PORT` | `41641` |
+| 端口 | `TS_PORT` | `{ 41641, 41642 }` |
 | 端口 | `SSH_PORT` | `22` |
 | 端口 | `DNS_PORT` | `53` |
-| 地址 | `WG_IP` | `10.10.10.2` |
 | 地址 | `ROUTER_LAN_IP` | `192.168.8.1` |
 | 地址 | `PROXY_SERVER_IP` | `192.168.8.180` |
 | 网段 | `LAN_NET` | `192.168.8.0/24` |
 | 网段 | `TS_NET` | `100.64.0.0/10` |
-| 网段 | `WG_NET` | `10.10.10.0/24` |
-| 集合 | `VPN_NETS` | `{ TS_NET, WG_NET }` |
+| 集合 | `VPN_NETS` | `{ TS_NET }` |
 | 集合 | `WAN_IFS_LIST` | `{ eth0 }` |
 | 集合 | `LAN_IFS_LIST` | `{ eth1 }` |
-| 集合 | `VPN_IFS_LIST` | `{ wg0, ts0 }` |
+| 集合 | `VPN_IFS_LIST` | `{ ts0, tailscale0 }` |
 | 集合 | `TUN_IFS_LIST` | `{ tun0 }` |
 | 集合 | `PROXY_SETS` | `{ 192.168.8.180 }` |
 | 路由表 | `ROUTE_TABLE_ID` | `100` |
@@ -45,7 +41,8 @@
 说明：
 
 - 当前默认接口假设仍然是 `WAN=eth0`、`LAN=eth1`。
-- `PROXY_SETS`、`ROUTE_TABLE_ID`、`PRIVATE_NETS` 在本目录的 NAT/Filter 文件中暂未直接使用。
+- WireGuard 相关变量（`WG`/`WG_PORT`/`WG_IP`/`WG_NET`）已移除，VPN 入口统一走 Tailscale（含自建 Headscale 控制端）。
+- `VPN_NETS`、`PROXY_SETS`、`ROUTE_TABLE_ID`、`PRIVATE_NETS` 在本目录的 NAT/Filter 文件中暂未直接使用。
 
 ## 2. NAT 规则
 
@@ -109,8 +106,7 @@
 
 - 丢弃来自 WAN 且源地址已在 `flood_blacklist_v4` / `flood_blacklist_v6` 中的流量
 - 明确允许 WAN 进入的 UDP 端口：
-  - `51820/udp`，用于 WireGuard
-  - `41641/udp`，用于 Tailscale
+  - `41641`/`41642`/udp（`TS_PORT`），用于 Tailscale 握手
 - 对自 WAN 的新建 TCP SYN来 连接做限速
   - 超过 `100/second`，突发超过 `200 packets`
   - 记录日志
@@ -167,7 +163,7 @@
 
 结论：
 
-- WAN 对本机默认只开放 WireGuard、Tailscale 握手和受限 ICMP/ICMPv6。
+- WAN 对本机默认只开放 Tailscale 握手和受限 ICMP/ICMPv6。
 - LAN / TUN / VPN 到本机相对宽松，除前面单独列出的 SSH、DNS、DHCP 外，后续还有整体 `accept`。
 
 ### INPUT 默认处理
@@ -255,7 +251,7 @@
 从当前规则看，有几个实现上的注意事项：
 
 1. `prerouting` 为空，说明当前没有端口转发。
-2. `flowtable f` 仅绑定 `{ eth0, eth1 }`，不包含 `wg0`、`ts0`、`tun0`。
-3. `VPN_IFS_LIST` 包含 `wg0` 和 `ts0`，同时又单独通过 `TS_NET` 允许部分访问，存在“按接口”和“按地址段”混用的设计。
+2. `flowtable f` 仅绑定 `{ eth0, eth1 }`，不包含 `ts0`、`tun0` 等 VPN/TUN 接口。
+3. `VPN_IFS_LIST` 包含 `{ ts0, tailscale0 }`，同时 INPUT 链又单独通过 `TS_NET` 允许 ICMP，存在“按接口”和“按地址段”混用的设计。
 4. `input` 链末尾存在 `iifname @vpn_interfaces accept`、`iifname @tun_interfaces accept`、`iifname @lan_interfaces accept`，因此这些入口到本机的大部分流量都会被放行。
 5. 若未来要支持普通 LAN 直连上网，需要确认是否应补充 `LAN -> WAN` 转发规则，或由其他策略路由规则接管。
