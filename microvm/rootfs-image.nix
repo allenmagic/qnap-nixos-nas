@@ -1,29 +1,31 @@
 # Alpine Router MicroVM 的 ext4 根镜像：
 #   r3s 构建的 x86_64 Alpine rootfs tarball（纯用户态）
-#   + guest 内核的模块（/lib/modules 版本对齐）
+#   + Alpine 官方 modloop-virt 的模块（/lib/modules 与 vmlinuz-virt 精确配套）
 #   → 8G ext4 镜像（与原 qcow2 同规格）
 { pkgs, lib, rootfsTarball }:
 
 let
-  kernel = import ./kernel.nix { inherit pkgs lib; };
+  # 与 vmlinuz-virt 同源同版本的模块集（squashfs 镜像）
+  modloop = pkgs.fetchurl {
+    url = "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/x86_64/netboot-3.24.1/modloop-virt";
+    sha256 = "78907e7cc812d555f08d4e1133d090cf11fa197370882adfe67b0a5986ccb3f9";
+  };
 in
 
 pkgs.runCommand "alpine-router-rootfs.ext4" {
-  nativeBuildInputs = [ pkgs.e2fsprogs pkgs.gnutar pkgs.xz ];
+  nativeBuildInputs = [ pkgs.e2fsprogs pkgs.gnutar pkgs.squashfsTools ];
 } ''
   mkdir -p rootfs
   tar xf ${rootfsTarball} -C rootfs --numeric-owner
 
-  # 内核模块对齐：guest 内核是宿主侧 nixpkgs 出品，rootfs 里必须装对应模块
-  # （nixpkgs 26.05 起模块在独立的 modules 输出里）
+  # 内核模块：modloop-virt 里是 modules/<ver>/（注意非 lib/modules），
+  # 平移到 rootfs/lib/modules/<ver>，供 openrc/mdev 的 modprobe 使用
   mkdir -p rootfs/lib/modules
-  cp -r ${kernel.modules}/lib/modules/${kernel.modDirVersion} rootfs/lib/modules/
-  # 保持 .ko.xz 原样：modules.dep 指向 .xz 路径，Alpine 的 busybox modprobe
-  # 支持 xz 模块（此前尝试解压反而让 modprobe 找不到文件）
+  unsquashfs -d modloop-x ${modloop} >/dev/null
+  cp -r modloop-x/modules/* rootfs/lib/modules/
 
-  # 引导期自动加载：r3s 的 /etc/modules 只有 af_packet/ipv6（R3S 内核把
-  # nftables 编进内核），我们的内核是模块——nftables 服务要求 nf_tables
-  # 预先加载，virtio 网卡需要 virtio_net（依赖由 modules.dep 自动解析）
+  # 引导期自动加载：r3s 的 modules 服务注册在 default runlevel，
+  # 字母序排在 nftables/networking 之后；nf_tables 必须提前就位
   cat >> rootfs/etc/modules <<'MODULES'
 nf_tables
 virtio_net

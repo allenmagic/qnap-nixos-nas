@@ -7,8 +7,9 @@
 # 与 libvirt 方案的关系：
 #   - 网络拓扑不变：tap 直接挂进 br-wan / br-lan（microvm 的 bridge 类型接口）
 #   - 配置分发不变：alpine-router-deploy 仍走 ssh + tarball，与 hypervisor 无关
-#   - 差异：VM 声明式（重装随 flake 重建）、内核由宿主侧 nixpkgs 出品、
-#     无 Cockpit 管理（Cockpit 只见 libvirt 域）
+#   - 差异：VM 声明式（重装随 flake 重建）；内核/initrd/模块为 Alpine 官方
+#     virt 三件套（netboot-3.24.1，全链路同源）；无 Cockpit 管理
+#     （Cockpit 只见 libvirt 域）
 { config, lib, pkgs, ... }:
 
 let
@@ -34,12 +35,14 @@ in
       vcpu = 2;
       mem = 512;   # MB
 
-      # 客户机内核（nixpkgs 默认内核，缓存零编译）与最小 initrd
+      # 客户机内核（Alpine 官方 vmlinuz-virt）与官方 initramfs-virt（注入 ext4）
       kernel = import ./kernel.nix { inherit pkgs; };
-      initrdPath = "${import ./initrd.nix { inherit pkgs kernel; }}/initrd";
-      kernelParams = [ "root=/dev/vda" "rw" ];
+      initrdPath = "${import ./initrd.nix { inherit pkgs; }}/initrd";
+      # rootfstype=ext4：initramfs 的 "Loading boot drivers" 会据此 modprobe ext4
+      kernelParams = [ "root=/dev/vda" "rootfstype=ext4" "rw" ];
 
       volumes = [{
+        # vda：ext4 根卷（r3s rootfs + modloop 模块）
         image = "${import ./rootfs-image.nix {
           inherit pkgs lib;
           rootfsTarball = cfg.rootfsTarball;
