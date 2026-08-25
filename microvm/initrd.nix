@@ -33,6 +33,17 @@ pkgs.runCommand "alpine-router-initrd" {
   xz -d -c ${modRoot}/fs/jbd2/jbd2.ko.xz > root/lib/modules/fs/jbd2/jbd2.ko 2>/dev/null || true
   xz -d -c ${modRoot}/lib/crc/crc16.ko.xz > root/lib/modules/lib/crc16.ko 2>/dev/null || true
   xz -d -c ${modRoot}/fs/ext4/ext4.ko.xz > root/lib/modules/fs/ext4/ext4.ko 2>/dev/null || true
+  # 网络/防火墙模块也预加载：r3s 的 modules 服务注册在 default runlevel，
+  # 字母序排在 nftables/networking 之后，等它加载时服务早已失败
+  mkdir -p root/lib/modules/net/netfilter root/lib/modules/net
+  xz -d -c ${modRoot}/net/netfilter/nfnetlink.ko.xz > root/lib/modules/net/netfilter/nfnetlink.ko 2>/dev/null || true
+  xz -d -c ${modRoot}/net/netfilter/nf_tables.ko.xz > root/lib/modules/net/netfilter/nf_tables.ko 2>/dev/null || true
+  xz -d -c ${modRoot}/net/netfilter/nf_conntrack.ko.xz > root/lib/modules/net/netfilter/nf_conntrack.ko 2>/dev/null || true
+  xz -d -c ${modRoot}/net/netfilter/nf_nat.ko.xz > root/lib/modules/net/netfilter/nf_nat.ko 2>/dev/null || true
+  xz -d -c ${modRoot}/net/netfilter/nf_flow_table.ko.xz > root/lib/modules/net/netfilter/nf_flow_table.ko 2>/dev/null || true
+  xz -d -c ${modRoot}/net/core/failover.ko.xz > root/lib/modules/net/failover.ko 2>/dev/null || true
+  xz -d -c ${modRoot}/drivers/net/net_failover.ko.xz > root/lib/modules/net/net_failover.ko 2>/dev/null || true
+  xz -d -c ${modRoot}/drivers/net/virtio_net.ko.xz > root/lib/modules/net/virtio_net.ko 2>/dev/null || true
 
   cat > root/init <<'INITEOF'
 #!/bin/sh
@@ -53,9 +64,32 @@ insmod_v /lib/modules/fs/mbcache.ko
 insmod_v /lib/modules/fs/jbd2/jbd2.ko
 insmod_v /lib/modules/lib/crc16.ko
 insmod_v /lib/modules/fs/ext4/ext4.ko
+# 网络/防火墙（在客户机服务启动前就位）
+insmod_v /lib/modules/net/netfilter/nfnetlink.ko
+insmod_v /lib/modules/net/netfilter/nf_tables.ko
+insmod_v /lib/modules/net/netfilter/nf_conntrack.ko
+insmod_v /lib/modules/net/netfilter/nf_nat.ko
+insmod_v /lib/modules/net/netfilter/nf_flow_table.ko
+insmod_v /lib/modules/net/failover.ko
+insmod_v /lib/modules/net/net_failover.ko
+insmod_v /lib/modules/net/virtio_net.ko
 
 sleep 1
 mount /dev/vda /newroot && echo "rootfs mounted"
+# switch_root 后内核不再自动挂 devtmpfs（DEVTMPFS_MOUNT 只作用于初始根），
+# 而 Alpine base 的 devfs/sysfs 服务未注册（r3s 只装 openrc），这里显式挂进新根
+mount -t devtmpfs devtmpfs /newroot/dev
+mount -t proc proc /newroot/proc
+mount -t sysfs sysfs /newroot/sys
+# 调试开关：cmdline 带 debugshell=1 时直接进客户机 shell（不进 openrc）
+# 用纯 shell 内建（精简 busybox 无 grep applet）
+read _CMDLINE_ < /proc/cmdline
+case "$_CMDLINE_" in
+  *debugshell=1*)
+    echo "debug shell"
+    exec switch_root /newroot /bin/sh
+  ;;
+esac
 exec switch_root /newroot /sbin/init
 INITEOF
   chmod +x root/init

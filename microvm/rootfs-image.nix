@@ -18,15 +18,16 @@ pkgs.runCommand "alpine-router-rootfs.ext4" {
   # （nixpkgs 26.05 起模块在独立的 modules 输出里）
   mkdir -p rootfs/lib/modules
   cp -r ${kernel.modules}/lib/modules/${kernel.modDirVersion} rootfs/lib/modules/
-  # cp -r 会把 store 目录的只读权限一并复制，先恢复写权限
-  chmod -R u+w rootfs/lib/modules
+  # 保持 .ko.xz 原样：modules.dep 指向 .xz 路径，Alpine 的 busybox modprobe
+  # 支持 xz 模块（此前尝试解压反而让 modprobe 找不到文件）
 
-  # nixpkgs 的模块是 .ko.xz——Alpine 的 busybox modprobe 不支持 xz，全部解压
-  # （store 文件只读，必须流式解压到新文件，不能原地 xz -d）
-  find rootfs/lib/modules -name '*.ko.xz' | while read -r f; do
-    xz -d -c "$f" > "''${f%.xz}"
-  done
-  find rootfs/lib/modules -name '*.ko.xz' -delete
+  # 引导期自动加载：r3s 的 /etc/modules 只有 af_packet/ipv6（R3S 内核把
+  # nftables 编进内核），我们的内核是模块——nftables 服务要求 nf_tables
+  # 预先加载，virtio 网卡需要 virtio_net（依赖由 modules.dep 自动解析）
+  cat >> rootfs/etc/modules <<'MODULES'
+nf_tables
+virtio_net
+MODULES
 
   truncate -s 8G $out
   mkfs.ext4 -q -F -L alpine-rootfs -d rootfs $out
