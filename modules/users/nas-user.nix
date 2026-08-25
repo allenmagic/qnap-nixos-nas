@@ -19,11 +19,15 @@
       # "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... your-key-here"
     ];
 
-    # 禁用密码登录（SSH 使用密钥）
-    # 注意：Cockpit Web 登录走 PAM 密码认证，需要给该用户设置系统密码后才能登录 Cockpit。
-    # 生成密码哈希：mkpasswd -m sha-512，然后替换 hashedPassword 的值：
-    # hashedPassword = "$6$...";
-    hashedPassword = "!";
+    # 系统密码（hash）用途：Cockpit Web 登录（PAM）、sudo、SSH 密码登录
+    # （密码仅内网与 Tailscale 网段放行，见 modules/security/ssh.nix 的 Match；
+    #   其他来源只认密钥）。
+    #
+    # ⚠️ 本仓库是公开的：hash 可被离线爆破，密码必须足够强（推荐 4 个以上
+    # 随机单词或 16+ 位随机字符）且不要与其他账号复用。改密码时重新生成 hash
+    # 替换即可；注意旧 hash 会永久留在 git 历史里，背后的密码务必终身不复用。
+    # 生成：mkpasswd -m sha-512（或 openssl passwd -6）
+    hashedPassword = "$6$0sMQSWRntUi.eVpe$BDlpZGVvPFbBgNKTV0p4MN178FbvDJE599yhSaaTYFcYYJsxiW.AIwXG8QYLCAHIcB6MOjhrLy.NLDCEH2d0H0";
   };
 
   # 创建 storage 组

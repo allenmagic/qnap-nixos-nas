@@ -35,6 +35,9 @@ creation_rules:
 ```bash
 # 创建明文模板
 cat > secrets/secrets.yaml <<EOF
+# nas 系统密码 hash（Cockpit/sudo/SSH 密码登录共用）
+nas-password: \$6\$xxxxxxxx...   # mkpasswd -m sha-512 生成
+
 # Samba 密码
 samba-password: your-password-here
 
@@ -58,6 +61,20 @@ cat secrets/secrets.yaml
 # 解密查看（需要对应的私钥）
 sops secrets/secrets.yaml
 ```
+
+## nas 系统密码（sops-nix 方案，可选）
+
+> 默认做法是把 hash 直接写进 `modules/users/nas-user.nix` 的 `hashedPassword`
+> （需强密码且不复用，见该文件的警告注释）。本方案适用于不想让 hash 进公开
+> 仓库、或需要管理多个密码的场景。
+
+### 流程
+
+1. 生成 hash：`mkpasswd -m sha-512`（或 `openssl passwd -6`）
+2. 写入 `secrets/secrets.yaml` 的 `nas-password` 字段，`sops -e -i` 加密
+3. `modules/security/sops.nix` 取消注释 `nas-password` 定义
+4. `modules/users/nas-user.nix` 启用 `hashedPasswordFile = config.sops.secrets.nas-password.path;` 并删掉 `hashedPassword = "!"`
+5. `nixos-rebuild switch` —— 之后改密码只需改 secrets.yaml，无需重建配置
 
 ## 使用密钥
 

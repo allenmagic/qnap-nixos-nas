@@ -15,6 +15,10 @@
     firewall = {
       enable = true;
 
+      # Tailscale 接口（若在 NAS 上直接运行 tailscaled）：
+      # 放行 SSH，供远程密钥登录（密码登录仍由 sshd 的 Match 保持禁用）
+      interfaces.tailscale0.allowedTCPPorts = [ 22 ];
+
       # 在 br-lan 上开放服务端口
       interfaces.br-lan = {
         allowedTCPPorts = [

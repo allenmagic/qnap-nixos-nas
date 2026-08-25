@@ -196,9 +196,9 @@ sudo cat /var/lib/sops-nix/key.txt | grep "public key:"
 # 2. 设置 Samba 密码（与系统密码相互独立）
 sudo smbpasswd -a nas
 
-# 3. 设置 nas 系统密码（Cockpit Web 登录需要；SSH 仍只用密钥）
-#    无外网时在笔记本上生成哈希：openssl passwd -6
-#    把输出的 $6$... 填入 modules/users/nas-user.nix 的 hashedPassword，然后：
+# 3. nas 系统密码已预填（modules/users/nas-user.nix 的 hashedPassword，
+#    Cockpit/sudo/SSH 密码登录共用）。如需更换：openssl passwd -6
+#    （或 mkpasswd -m sha-512）重新生成替换后 rebuild。
 sudo nixos-rebuild switch --flake .#default
 
 # 4. 硬件检查
@@ -330,7 +330,7 @@ sudo virsh dumpxml alpine-router > /srv/data/alpine-router.xml
 | NAS 宿主机 | 192.168.8.2（br-lan） |
 | Alpine VM LAN | 192.168.8.1（网关/DNS） |
 | DHCP 池 | 192.168.8.100 - 192.168.8.200 |
-| SSH | 22（仅密钥登录） |
+| SSH | 22（内网与 Tailscale 可密码登录，其他来源仅密钥） |
 | Cockpit | 9090（br-lan） |
 | Samba | 139/445 |
 | NFS | 2049 |

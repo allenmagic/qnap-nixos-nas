@@ -61,7 +61,7 @@ sops secrets/secrets.yaml                         # 编辑加密密钥（需要 
 4. `modules/users/nas-user.nix` 的 SSH 公钥是占位注释——无任何密钥则无法 SSH 登录（密码登录已禁用）。`wheelNeedsPassword = true`。
 5. 数据盘为 Btrfs 原生 RAID1（无 mdadm）：`mkfs.btrfs -m raid1 -d raid1 -L data` 创建，挂载靠卷标，多设备由内核自动组装；`services.btrfs.autoScrub` 每月自动校验修复。
 6. `modules/security/sops.nix` 中 `defaultSopsFile = ../../secrets/secrets.yaml` 是相对路径——移动该文件时必须同步改路径。
-7. **Cockpit 登录需要系统密码**：cockpit 本地登录走 PAM 密码认证，而 `nas` 用户 `hashedPassword = "!"`（`modules/users/nas-user.nix`）。要用 Cockpit 必须先给 nas（或专用用户）设系统密码：`mkpasswd -m sha-512` 生成哈希后填入。SSH 仍只允许密钥登录，不受影响。
+7. **Cockpit/nas 密码已配置**：`nas` 用户的 hash 已填在 `modules/users/nas-user.nix` 的 `hashedPassword`（安装即用，Cockpit/sudo/SSH 密码登录共用）。**⚠️ 仓库是公开的，hash 可被离线爆破——密码必须足够强且不复用；旧 hash 会永久留在 git 历史里**。改密码：`mkpasswd -m sha-512` 重新生成替换；需要加密管理时可用 sops-nix（`secrets/README.md`）。SSH 密码登录仅对内网与 Tailscale 网段放行（`ssh.nix` 的 Match Address 192.168.8.0/24,100.64.0.0/10），其他来源仅允许密钥。
 8. `alpine-router/` 中的 `__XXX__` 占位符（base/ 配置、install.sh 网络默认值、tailscale config.json）在 **Nix 构建时替换**（`modules/virtualization/alpine-router.nix` 的 postPatch），网络参数常量在同文件 `let` 块中，**修改网段时必须与 `bridges.nix` 同步**。R3S 遗留：`PROXY_SERVER_IP`（nftables vars 中被防火墙规则引用）、`local.d/99-hw-tweak.start`（R3S 网卡调优，VM 中无实际效果）。
 
 ## 代码风格
