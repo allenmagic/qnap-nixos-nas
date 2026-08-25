@@ -104,6 +104,6 @@ ip a                                # 改过 bridges.nix 则有网络配置
 | `could not find a flake.nix file` | 3.2 的 clone 因目录非空失败；或用了相对路径 `.#default` 但不在仓库目录。重做 3.2，且用绝对路径 `/mnt/etc/nixos#default` |
 | `echo >> /etc/nix/nix.conf` 报 Read-only file system | ISO 上该文件是指向 store 的符号链接；用 `--option` 或 `~/.config/nix/nix.conf` |
 | flake 报 not tracked by Git | 未 `git add -N -f hardware-configuration.nix` |
-| 重启后数据卷未挂载 | `btrfs device scan && mount /srv/data`；确认卷标与 disks.nix 一致 |
+| 重启后数据卷未挂载 | `btrfs device scan && mount /srv/data`；确认卷标与 filesystem.nix 一致 |
 | qnap8528 模块加载失败 | VM 无 QNAP EC 硬件，预期现象 |
 | `VirtualBox-GuestAdditions` 构建失败，linux-modules 闭包连锁报错 | 生成的 hardware-configuration.nix 带 `virtualisation.virtualbox.guest.enable = true;`；删除该行再重装（VM 测试不需要 Guest Additions） |

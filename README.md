@@ -32,7 +32,7 @@
 ├── flake.lock                         # 依赖锁定（必须提交）
 ├── CLAUDE.md                          # Claude Code 开发指引
 ├── configuration.nix                  # 主机配置
-├── disks.nix                          # 磁盘和文件系统配置
+├── filesystem.nix                     # 文件系统挂载与维护配置
 ├── hardware-configuration.nix.example # 硬件配置模板
 ├── hardware-configuration.nix         # 硬件配置（安装时生成，不入库）
 ├── README.md                          # 本文档
@@ -101,8 +101,6 @@ mv hardware-configuration.nix .
 
 # 重要：flake 只能读取 git 跟踪的文件，用 intent-to-add 让其可见（文件本身不会被提交）
 git add -N -f hardware-configuration.nix
-
-# 编辑 disks.nix，填入 RAID UUID
 
 # 编辑 modules/users/nas-user.nix，添加你的 SSH 公钥
 
@@ -294,7 +292,7 @@ sudo modprobe qnap8528
 sudo btrfs device scan
 sudo mount /srv/data
 
-# 确认卷标与 disks.nix 一致
+# 确认卷标与 filesystem.nix 一致
 btrfs filesystem show
 ```
 

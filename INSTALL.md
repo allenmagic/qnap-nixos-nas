@@ -342,7 +342,7 @@ sudo virsh dumpxml alpine-router > /srv/data/alpine-router.xml
 
 | 现象 | 处理 |
 |---|---|
-| 重启后数据卷未挂载 | `btrfs device scan && mount /srv/data`；确认 disks.nix 卷标与 `mkfs.btrfs -L` 一致 |
+| 重启后数据卷未挂载 | `btrfs device scan && mount /srv/data`；确认 filesystem.nix 卷标与 `mkfs.btrfs -L` 一致 |
 | flake 报 not tracked by Git | `git add -N -f hardware-configuration.nix` |
 | VM 无法启动 | `sudo virsh list --all`、`sudo virsh console alpine-router` |
 | DHCP 客户端拿不到地址 | VM 内检查 `rc-service dnsmasq status`、`cat /etc/dnsmasq.d/10-dhcp-eth1.conf` |

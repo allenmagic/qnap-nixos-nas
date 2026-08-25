@@ -28,7 +28,7 @@ sops secrets/secrets.yaml                         # 编辑加密密钥（需要 
 ### 入口与模块组织
 
 - `flake.nix`：唯一入口。imports qnap8528 和 sops-nix 的 nixosModules，然后导入 `./configuration.nix` 和 `./modules/{system,hardware,network,virtualization,services,security,users}`。通过 `specialArgs` 传入 `inputs`（所有 flake 输入，qnap8528 模块用它读 fancontrol 配置）。
-- `configuration.nix`：主机级配置（hostname、stateVersion、boot loader、QNAP 硬件开关），imports `./hardware-configuration.nix` 和 `./disks.nix`。
+- `configuration.nix`：主机级配置（hostname、stateVersion、boot loader、QNAP 硬件开关），imports `./hardware-configuration.nix` 和 `./filesystem.nix`。
 - `modules/<分组>/default.nix` 是每个分组的聚合入口，只做 imports；具体配置在分组内的各个文件里。
 
 ### 网络拓扑（关键设计）
@@ -51,7 +51,7 @@ sops secrets/secrets.yaml                         # 编辑加密密钥（需要 
 
 - QNAP 硬件支持来自 flake input `qnap8528`；风扇配置在**求值时**直接读取外部仓库：`builtins.readFile "${inputs.qnap8528}/examples/fancontrol.conf"`（`modules/hardware/fancontrol.nix`）——修改该仓库会影响本配置。
 - sops-nix：age 私钥位于 `/var/lib/sops-nix/key.txt`，`defaultSopsFile` 指向 `secrets/secrets.yaml`（见 `modules/security/sops.nix`）。
-- 磁盘按 label 挂载（`disks.nix`）：`nixos`/`boot`（系统盘）、`/srv/data`（**Btrfs 原生 RAID1**，无 mdadm，卷标 `data`，每月自动 scrub）、`/srv/cache`、`/srv/backup`。
+- 磁盘按 label 挂载（`filesystem.nix`）：`nixos`/`boot`（系统盘）、`/srv/data`（**Btrfs 原生 RAID1**，无 mdadm，卷标 `data`，每月自动 scrub）、`/srv/cache`、`/srv/backup`。
 
 ## ⚠️ 当前状态与坑
 
