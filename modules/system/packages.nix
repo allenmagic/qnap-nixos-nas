@@ -11,7 +11,6 @@
     btop
     iotop
     tmux
-    screen
 
     # 网络工具
     wget
@@ -56,7 +55,8 @@
   programs.bash = {
     completion.enable = true;
     shellAliases = {
-      ll = "ls -alh";
+      ll = "ls -lhrt";      # 长格式 + 按修改时间倒序（最新的在最后）
+      lla = "ls -lahrt";    # 同上，含隐藏文件
       la = "ls -A";
       l = "ls -CF";
       ".." = "cd ..";
