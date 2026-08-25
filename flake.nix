@@ -14,9 +14,15 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # MicroVM（Alpine 路由 VM 的替代方案，POC，见 microvm/router.nix）
+    microvm = {
+      url = "github:astro/microvm.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
   };
 
-  outputs = { self, nixpkgs, qnap8528, sops-nix, ... }@inputs: {
+  outputs = { self, nixpkgs, qnap8528, sops-nix, microvm, ... }@inputs: {
     nixosConfigurations.default = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       specialArgs = {
@@ -28,6 +34,9 @@
 
         # Import sops-nix
         sops-nix.nixosModules.sops
+
+        # Import microvm host 模块（定义 microvm.vms；客户机模块 microvm.nixosModules.microvm 用不到）
+        microvm.nixosModules.host
 
         # Import main configuration
         ./configuration.nix
