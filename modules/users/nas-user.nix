@@ -34,11 +34,12 @@
   users.groups.storage = {};
 
   # 创建服务目录并设置权限
+  # 路径约定：性能敏感/可重建的应用状态放 /srv/cache（SSD），
+  # 不可再生数据放 /srv/data（Btrfs RAID1），无独立的 /srv/app 目录
   systemd.tmpfiles.rules = [
     "d /srv/data 0755 nas storage -"
     "d /srv/backup 0755 nas storage -"
     "d /srv/cache 0755 nas storage -"
-    "d /srv/app 0755 nas storage -"
 
     # /srv/data 下的默认数据分类目录（Samba/NFS 共享 data 时自动可见）
     "d /srv/data/music 0755 nas nas -"

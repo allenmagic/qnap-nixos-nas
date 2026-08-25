@@ -68,4 +68,4 @@ sops secrets/secrets.yaml                         # 编辑加密密钥（需要 
 
 - 模块文件是 NixOS module（`{ config, pkgs, lib, ... }: { ... }`），不是纯函数式 Nix 表达式。
 - 注释使用中文；配置内嵌 shell 脚本（install.sh、部署脚本）通过 `pkgs.writeShellScript` / `writeShellScriptBin` 生成。
-- 磁盘和服务路径约定：数据 `/srv/data`、缓存 `/srv/cache`、备份 `/srv/backup`、应用 `/srv/app`；服务运行用户为 `nas`（在 `users/` 模块中定义），tmpfiles 规则负责建目录。
+- 磁盘和服务路径约定：数据 `/srv/data`（Btrfs RAID1，不可再生数据）、缓存 `/srv/cache`（SSD，性能敏感/可重建状态）、备份 `/srv/backup`；服务运行用户为 `nas`（在 `users/` 模块中定义），tmpfiles 规则负责建目录。
