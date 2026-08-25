@@ -45,7 +45,8 @@
     nginx.enable = true;
     nginx.virtualHost = {
       # 与 Navidrome(4533) 区分，沿用 Feishin 默认端口
-      listen = [ { port = 9180; } ];
+      # addr 必填（listen 子模块的 addr 无默认值），与其余服务一致绑定内网 IP
+      listen = [ { addr = "192.168.8.2"; port = 9180; } ];
     };
 
     # 服务器地址不硬编码：内网用户填 http://192.168.8.2:4533，

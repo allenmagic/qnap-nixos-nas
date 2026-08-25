@@ -33,18 +33,22 @@
   # NFSv4 只有一个伪文件系统根，而 data/cache/backup 彼此平级、无法直接组成一个根，
   # 必须 bind 到同一根目录下。depends 保证源挂载点先挂好再 bind。
   fileSystems = {
+    # bind mount 必须显式 fsType = "none"，否则求值报 "fsType has no value defined"
     "/srv/nfs/data" = {
       device = "/srv/data";
+      fsType = "none";
       options = [ "bind" ];
       depends = [ "/srv/data" ];
     };
     "/srv/nfs/cache" = {
       device = "/srv/cache";
+      fsType = "none";
       options = [ "bind" ];
       depends = [ "/srv/cache" ];
     };
     "/srv/nfs/backup" = {
       device = "/srv/backup";
+      fsType = "none";
       options = [ "bind" ];
       depends = [ "/srv/backup" ];
     };
