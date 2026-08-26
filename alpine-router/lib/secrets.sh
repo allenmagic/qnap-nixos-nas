@@ -11,6 +11,18 @@
 inject_secrets() {
     echo "[secrets] === 密钥注入 ==="
 
+    # SSH 公钥：写入 /root/.ssh/authorized_keys（deploy 通道本身与日常登录；
+    # r3s 出厂 sshd 默认拒绝 root 密码登录，公钥是唯一免密通道）
+    if [ -n "${SSH_PUBLIC_KEY:-}" ]; then
+        mkdir -p /root/.ssh
+        chmod 700 /root/.ssh
+        printf '%s\n' "${SSH_PUBLIC_KEY}" > /root/.ssh/authorized_keys
+        chmod 600 /root/.ssh/authorized_keys
+        echo "  → SSH 公钥已注入"
+    else
+        echo "  → 未提供 SSH_PUBLIC_KEY，跳过"
+    fi
+
     # Tailscale: authkey 写入 /etc/tailscale/authkey（config.json 引用）
     if [ -n "${TAILSCALE_AUTH_KEY:-}" ]; then
         mkdir -p /etc/tailscale

@@ -44,6 +44,7 @@ sudo chmod 600 /etc/libvirt/alpine-router.env
 
 `alpine-router-deploy` 会把该文件 scp 到 VM 并重命名为 `./env`，install.sh source 后：
 
+- `SSH_PUBLIC_KEY` → `/root/.ssh/authorized_keys`（deploy 通道与日常登录；r3s 出厂 sshd 默认拒绝 root 密码登录，公钥是唯一免密通道）
 - `TAILSCALE_AUTH_KEY` → `/etc/tailscale/authkey`（config.json 通过 `authKey: file:` 引用），随后自动 `tailscale up`
 - `CLOUDFLARED_TOKEN` → `/etc/cloudflared/config.yml`
 

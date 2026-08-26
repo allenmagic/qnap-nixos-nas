@@ -121,6 +121,11 @@ in
       config = {
         microvm.hypervisor = "cloud-hypervisor";
 
+        # vsock（0=hypervisor 1=loopback 2=host 保留，guest 从 3 起）。
+        # 注：microvm -s 的 vsock SSH 需要 guest 侧监听 vsock 的 sshd
+        # （Alpine 默认只监听 TCP），此处先占 CID 供将来扩展
+        microvm.vsock.cid = 3;
+
         microvm.vcpu = 2;   # vcpu0 独占 cpu3；vcpu1 动态
         microvm.mem = 512;  # MB，guest 内存上限
 
