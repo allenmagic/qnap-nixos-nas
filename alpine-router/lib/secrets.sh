@@ -13,6 +13,8 @@ inject_secrets() {
 
     # SSH 公钥：写入 /root/.ssh/authorized_keys（deploy 通道本身与日常登录；
     # r3s 出厂 sshd 默认拒绝 root 密码登录，公钥是唯一免密通道）
+    # 支持多个 key：SSH_PUBLIC_KEY 每行一个公钥（如部署机 + 个人设备各一行），
+    # 覆盖写保持 deploy 幂等（authorized_keys 以 env 文件为准）
     if [ -n "${SSH_PUBLIC_KEY:-}" ]; then
         mkdir -p /root/.ssh
         chmod 700 /root/.ssh
