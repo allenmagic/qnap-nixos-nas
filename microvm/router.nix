@@ -132,7 +132,9 @@ in
         microvm.deflateOnOOM = true;
 
         # vcpu0 affinity（--cpus boot=N 由 microvm 生成，affinity 经 extraArgs 合并）
-        microvm.cloud-hypervisor.extraArgs = [ "--cpus" "affinity=[{vcpu=0,cpus=[3]}]" ];
+        # 语法：CH v53 用 vcpu@[host_cpus] 格式（WSL 实测验证；
+        # JSON 形式 [{vcpu=0,cpus=[3]}] 在 v53 会解析失败）
+        microvm.cloud-hypervisor.extraArgs = [ "--cpus" "affinity=[0@[3]]" ];
 
         # 客户机内核 / initramfs（官方 virt 三件套，装配时注入 ext4 依赖链）
         microvm.kernel = alpineKernel;
