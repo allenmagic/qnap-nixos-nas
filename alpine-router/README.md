@@ -47,3 +47,12 @@ install.sh 结束（含失败）时删除 env 文件。不提供密钥则跳过�
 `alpine-router-deploy` 注入密钥。
 
 **改密钥**：编辑 `/etc/libvirt/alpine-router.env` → `alpine-router-deploy`。
+
+## 部署前检查清单（占位项）
+
+| 占位项 | 位置 | 替换方式 |
+|---|---|---|
+| `SSH_PUBLIC_KEY` | `/etc/libvirt/alpine-router.env` | `ssh-keygen -t ed25519 -f /etc/libvirt/alpine-router-deploy` 后填 `.pub` 内容 |
+| `TAILSCALE_AUTH_KEY` | 同上 | Tailscale 管理后台生成一次性 key |
+| `CLOUDFLARED_TOKEN` | 同上 | Cloudflare Zero Trust 隧道页获取 |
+| 镜像三处 sha256 | `microvm/router.nix` | 取 alpine-router-image release 的 `SHA256SUMS`（当前已填 20260826 release 真实值，无需替换） |
