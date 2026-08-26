@@ -45,6 +45,7 @@ sops secrets/secrets.yaml                         # 编辑加密密钥（需要 
 - 密钥经 env 文件注入：NAS 上 `/etc/libvirt/alpine-router.env`（模板 `env.example`，chmod 600）由 `alpine-router-deploy` scp 到 VM，install.sh 结束（含失败）即删除；密钥不进入部署包和 nix store。
 - `alpine-router-deploy` 包装脚本：ping 检查 VM 在线 → scp tarball → scp 可选 env 密钥文件 → ssh 解包执行 install.sh。VM_IP 来自模块常量。
 - 更新路由配置的完整流程：修改 `alpine-router/base/` → `nixos-rebuild switch`（生成新 tarball）→ `alpine-router-deploy`。
+- **MicroVM 方案**（POC，`microvm/router.nix`，默认关闭）：镜像资产由独立仓库 `alpine-router-image` 的 CI 生产（release asset：vmlinuz-virt / initrd（注入 ext4 链）/ alpine-router-rootfs.qcow2），本仓库**纯 fetchurl 拉取**（router.nix 三处 URL+sha256，当前是 fakeSha256 占位——release 产出后按 SHA256SUMS 填真实值）；`alpine-router-disk` systemd 服务把 release 镜像复制到 `/var/lib/alpine-router/rootfs.qcow2` 可写状态目录（store 只读 qemu 打不开；autoCreate 语义是建空盘不是复制模板）；deploy 仍是唯一配置/密钥覆盖通道。
 - 系统 Web 管理通过 **Cockpit**（9090，`modules/services/cockpit.nix`），当前启用 `cockpit-machines` 插件（依赖 `virtualisation.libvirtd.dbus.enable`）；可按需加 podman/files/zfs 等插件。virt-manager/virt-viewer 等 GUI 工具已移除，命令行用 virsh/libguestfs。
 
 ### 硬件与密钥

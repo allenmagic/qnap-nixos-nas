@@ -1,62 +1,110 @@
 # Alpine Router MicroVM 声明（POC）
 #
 # 用法（测试时在配置里临时开启）：
-#   microvm.router.enable = true;   # rootfs 默认从 r3s CI release 拉取
+#   microvm.router.enable = true;   # 镜像资产默认从 alpine-router-image release 拉取
 #
-# 供应链与配置链（单一通道，无双重覆盖）：
-#   - rootfs：nanopi-r3s-rootfs 的 GitHub Actions release asset
-#     （CI 构建、包已装齐；默认 fetchurl 固定 tag+sha256）
-#   - 配置：alpine-router-deploy 是唯一覆盖通道——r3s 烙入的出厂配置
-#     在部署时被 NAS 权威版（alpine-router/base）覆盖，构建镜像时不做覆盖
-#   - 密钥：deploy 的 env 文件注入，绝不进入 release 产物与镜像
-#   - 网络拓扑不变：tap 直接挂进 br-wan / br-lan（microvm 的 bridge 类型接口）
-#   - 差异 vs libvirt：VM 声明式（重装随 flake 重建）；内核/initrd/模块为
-#     Alpine 官方 virt 三件套（netboot-3.24.1，全链路同源）；无 Cockpit 管理
-#     （Cockpit 只见 libvirt 域）
+# 供应链（2026-08-26 重构，纯 fetchurl）：
+#   - 镜像资产全部由 alpine-router-image 仓库 CI 生产（release asset）：
+#     vmlinuz-virt / initrd（注入 ext4 依赖链）/ alpine-router-rootfs.qcow2
+#   - 本模块只 fetchurl 拉取 + 声明 VM，无任何本地镜像构建
+#   - disk-prep 服务把 release 镜像复制到 /var/lib/alpine-router（可写状态目录；
+#     store 只读，qemu 无法直接读写打开；autoCreate 语义是创建空盘而非复制模板）
+#     release 升级（store 路径变化）时自动重装状态
+#   - 配置：alpine-router-deploy 是唯一覆盖通道（r3s 出厂配置在部署时被
+#     NAS 权威版覆盖）；密钥 env 注入，绝不进入 release 产物与镜像
+#   - 网络拓扑：tap 直接挂进 br-wan / br-lan（microvm 的 bridge 类型接口）
 { config, lib, pkgs, ... }:
 
 let
   cfg = config.microvm.router;
+
+  # alpine-router-image 仓库 CI release（升级时同步改 tag 与三处 sha256，
+  # 真实值取 release 的 SHA256SUMS asset）
+  imageRelease = "alpine-router-image-20260826";
+  releaseBase = "https://github.com/allenmagic/alpine-router-image/releases/download/${imageRelease}";
+  # release 尚未产出，fakeSha256 占位（构建报错信息会显示真实值）
+  fakeSha = lib.fakeSha256;
 in
 
 {
   options.microvm.router = {
     enable = lib.mkEnableOption "Alpine Router MicroVM（POC，与 libvirt 方案二选一）";
 
-    rootfsTarball = lib.mkOption {
+    kernelFile = lib.mkOption {
       type = lib.types.path;
       default = pkgs.fetchurl {
-        # nanopi-r3s-rootfs CI release（alpine / base infra / x86_64）
-        # 升级：r3s 新 release 后替换 tag 与 sha256（sha256 取同名 .sha256 asset）
-        # 注意：GitHub 直连不稳时可临时用代理构建，产物固定 sha256 不随网络变化
-        url = "https://github.com/allenmagic/nanopi-r3s-rootfs/releases/download/nanopi-r3s-rootfs-20260825/alpine-base-x86_64-rootfs.tar.xz";
-        sha256 = "75f8079b4863ce8fc8260b7c5700bdc180005f786123205cc96dd913810c7fda";
+        url = "${releaseBase}/vmlinuz-virt";
+        sha256 = fakeSha;
       };
       description = ''
-        Alpine x86_64 rootfs tarball。默认取 nanopi-r3s-rootfs 的 CI release asset；
-        本地调试可用 r3s 构建产物覆盖（ARCH=x86_64 PACK=1 ./distros/alpine/build.sh）。
+        Alpine 官方 vmlinuz-virt（alpine-router-image release asset）。
+        本地调试可用 image/assemble.sh 产物的 vmlinuz-virt 覆盖。
+      '';
+    };
+
+    initrd = lib.mkOption {
+      type = lib.types.path;
+      default = pkgs.fetchurl {
+        url = "${releaseBase}/initrd";
+        sha256 = fakeSha;
+      };
+      description = ''
+        装配后的 initramfs（已注入 ext4 依赖链，alpine-router-image release asset）。
+      '';
+    };
+
+    rootfsImage = lib.mkOption {
+      type = lib.types.path;
+      default = pkgs.fetchurl {
+        url = "${releaseBase}/alpine-router-rootfs.qcow2";
+        sha256 = fakeSha;
+      };
+      description = ''
+        VM 根磁盘 qcow2（rootfs + modloop 模块，alpine-router-image release asset）。
       '';
     };
   };
 
   config = lib.mkIf cfg.enable {
+    # 首次启动 / release 升级时把镜像复制到可写状态目录
+    systemd.services.alpine-router-disk = {
+      wantedBy = [ "multi-user.target" ];
+      requiredBy = [ "microvm@alpine-router.service" ];
+      before = [ "microvm@alpine-router.service" ];
+      serviceConfig.Type = "oneshot";
+      script = ''
+        STATE_DIR=/var/lib/alpine-router
+        STATE_IMG="$STATE_DIR/rootfs.qcow2"
+        SRC=${cfg.rootfsImage}
+        MARK="$STATE_DIR/.src-path"
+        mkdir -p "$STATE_DIR"
+        if [ ! -f "$STATE_IMG" ] || [ "$(cat "$MARK" 2>/dev/null)" != "$SRC" ]; then
+          echo "初始化/更新 VM 根磁盘: $SRC"
+          install -m 0644 "$SRC" "$STATE_IMG"
+          printf '%s' "$SRC" > "$MARK"
+        fi
+      '';
+    };
+
     microvm.vms.alpine-router = {
       hypervisor = "qemu";
       vcpu = 2;
       mem = 512;   # MB
 
-      # 客户机内核（Alpine 官方 vmlinuz-virt）与官方 initramfs-virt（注入 ext4）
-      kernel = import ./kernel.nix { inherit pkgs; };
-      initrdPath = "${import ./initrd.nix { inherit pkgs; }}/initrd";
+      # 客户机内核：官方 vmlinuz-virt（qemu runner 要求 $out/bzImage 文件名）
+      kernel = pkgs.runCommand "vmlinuz-virt" { } ''
+        mkdir -p $out
+        cp ${cfg.kernelFile} $out/bzImage
+      '';
+
+      # 官方 initramfs-virt（装配时已注入 ext4 依赖链）
+      initrdPath = "${cfg.initrd}";
       # rootfstype=ext4：initramfs 的 "Loading boot drivers" 会据此 modprobe ext4
       kernelParams = [ "root=/dev/vda" "rootfstype=ext4" "rw" ];
 
       volumes = [{
-        # vda：ext4 根卷（r3s rootfs + modloop 模块）
-        image = "${import ./rootfs-image.nix {
-          inherit pkgs lib;
-          rootfsTarball = cfg.rootfsTarball;
-        }}";
+        # vda：根卷（disk-prep 服务维护的可写状态副本，qcow2）
+        image = "/var/lib/alpine-router/rootfs.qcow2";
         mountPoint = "/";
         autoCreate = false;
       }];
