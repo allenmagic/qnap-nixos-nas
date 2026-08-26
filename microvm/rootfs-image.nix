@@ -13,8 +13,13 @@ let
 in
 
 pkgs.runCommand "alpine-router-rootfs.ext4" {
-  nativeBuildInputs = [ pkgs.e2fsprogs pkgs.gnutar pkgs.squashfsTools ];
+  nativeBuildInputs = [ pkgs.e2fsprogs pkgs.gnutar pkgs.squashfsTools pkgs.fakeroot ];
 } ''
+  # fakeroot 包裹：nix build 以非 root 运行，直接解包+mkfs.ext4 -d 会把
+  # tar 内的 uid 0 记录降级为构建用户 uid（镜像里 /var/empty 等归属错误，
+  # sshd 的 chroot 目录校验会拒绝启动）。fakeroot 下 lstat 返回伪 root 属主，
+  # 镜像内文件即正确落为 root:root
+  fakeroot sh -c "set -e
   mkdir -p rootfs
   tar xf ${rootfsTarball} -C rootfs --numeric-owner
 
@@ -31,6 +36,12 @@ nf_tables
 virtio_net
 MODULES
 
-  truncate -s 8G $out
-  mkfs.ext4 -q -F -L alpine-rootfs -d rootfs $out
+  # 启用 ttyS0 getty：r3s 产物默认注释（Alpine 默认状态）。
+  # vmlinuz-virt 内建 8250 串口驱动（QEMU 实测可登录），
+  # microvm 控制台/串口访问依赖它（-serial / virsh console）
+  sed -i 's|^#ttyS0:|ttyS0:|' rootfs/etc/inittab
+
+  truncate -s 8G \$out
+  mkfs.ext4 -q -F -L alpine-rootfs -d rootfs \$out
+  "
 ''
