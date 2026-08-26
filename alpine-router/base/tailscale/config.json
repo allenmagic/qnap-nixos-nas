@@ -1,9 +1,0 @@
-{
-  "version": "alpha0",
-  "authKey": "file:/etc/tailscale/authkey",
-  "hostname": "__TS_HOSTNAME__",
-  "acceptRoutes": true,
-  "acceptDNS": false,
-  "netfilterMode": "off",
-  "advertiseRoutes": [__TS_ADVERTISE_ROUTES__]
-}
