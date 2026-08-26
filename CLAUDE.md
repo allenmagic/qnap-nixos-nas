@@ -40,8 +40,8 @@ sops secrets/secrets.yaml                         # 编辑加密密钥（需要 
 ### Alpine 路由 VM
 
 - VM 本身**不在 NixOS 中声明**（需手动 `virt-install` 创建，见 `alpine-router/README.md`），NixOS 只负责打包和分发其配置。VM 镜像为 Alpine **3.24-stable**（virt ISO 3.24.1），virt-install 的 `--os-variant` 用 `alpinelinux3.23`（osinfo-db 尚无 3.24 条目，3.23 是最接近的）。
-- 路由配置在本仓库 `alpine-router/` 目录维护（最初从 nanopi-r3s-rootfs 导入，现已解耦），结构：`base/`（配置源）+ `install.sh`（主安装脚本）+ `lib/`（packages/network/service/secrets/check 组件）+ `scripts/network-watchdog.sh` + `package.list`（声明式包列表）+ `env.example`。构建时（`modules/virtualization/alpine-router.nix`）把这些文件打成 tarball 放入 `/etc/libvirt/alpine-router-deploy.tar.gz`，并用 postPatch 替换 `__XXX__` 占位符（base/ 配置、install.sh 网络默认值、tailscale config.json）。
-- `install.sh` 在 VM 内执行：装包（package.list）→ rsync 配置到 /etc → 网络配置（lib/network.sh）→ 服务注册与启动（lib/service.sh）→ 密钥注入（lib/secrets.sh）→ 完整性检查（lib/check.sh，失败会中止）。网络接口配置不立即生效（`RESTART_NETWORK=yes` 才重启网络，或重启 VM）。
+- 路由配置在本仓库 `alpine-router/` 目录维护（最初从 nanopi-r3s-rootfs 导入，现已解耦），结构：`base/`（配置源）+ `install.sh`（主安装脚本）+ `lib/`（network/service/secrets/check 组件）+ `scripts/network-watchdog.sh` + `env.example`。构建时（`modules/virtualization/alpine-router.nix`）把这些文件打成 tarball 放入 `/etc/libvirt/alpine-router-deploy.tar.gz`，并用 postPatch 替换 `__XXX__` 占位符（base/ 配置、install.sh 网络默认值、tailscale config.json）。**软件包列表（package.list）只在 nanopi-r3s-rootfs 仓库维护**——VM 的 rootfs 由 r3s CI 构建（release asset），包已装齐；本仓库无包管理职责。
+- `install.sh` 在 VM 内执行：rsync 配置到 /etc → 网络配置（lib/network.sh）→ 服务注册与启动（lib/service.sh）→ 密钥注入（lib/secrets.sh）→ 完整性检查（lib/check.sh，失败会中止）。网络接口配置不立即生效（`RESTART_NETWORK=yes` 才重启网络，或重启 VM）。
 - 密钥经 env 文件注入：NAS 上 `/etc/libvirt/alpine-router.env`（模板 `env.example`，chmod 600）由 `alpine-router-deploy` scp 到 VM，install.sh 结束（含失败）即删除；密钥不进入部署包和 nix store。
 - `alpine-router-deploy` 包装脚本：ping 检查 VM 在线 → scp tarball → scp 可选 env 密钥文件 → ssh 解包执行 install.sh。VM_IP 来自模块常量。
 - 更新路由配置的完整流程：修改 `alpine-router/base/` → `nixos-rebuild switch`（生成新 tarball）→ `alpine-router-deploy`。

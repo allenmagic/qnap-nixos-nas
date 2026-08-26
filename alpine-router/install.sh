@@ -3,7 +3,7 @@
 # Alpine Router 自动化安装脚本（VM 内以 root 执行）
 #
 # 通常由宿主机 `alpine-router-deploy` 调用：
-#   上传 tarball（install.sh + base/ + lib/ + scripts/ + package.list）
+#   上传 tarball（install.sh + base/ + lib/ + scripts/）
 #   → 上传可选密钥 env 文件（重命名为 ./env）
 #   → 解包后执行本脚本，结束后自动删除 env 文件
 #
@@ -55,14 +55,10 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 log_info "开始配置 Alpine Router（脚本目录: ${SCRIPT_DIR}）"
 
 # ============================================================
-# 1. 安装软件包（package.list）
+# 1. 部署配置文件（base/ → /etc）
 # ============================================================
-. "${LIB_DIR}/packages.sh"
-install_packages "${SCRIPT_DIR}/package.list"
-
-# ============================================================
-# 2. 部署配置文件（base/ → /etc）
-# ============================================================
+# 注：软件包由 nanopi-r3s-rootfs 构建产物提供（package.list 只在 r3s 仓库维护），
+#     install.sh 依赖的 rsync 也在其中（r3s package.list 已含 [pm] rsync）
 log_info "部署配置文件..."
 
 # 注意：不使用 --delete！/etc/init.d、/etc/conf.d 等目录里还有系统自带文件
@@ -106,13 +102,13 @@ find /etc/dnsmasq.d /etc/nftables.d /etc/sysctl.d /etc/tailscale \
     \( -name '*.md' -o -name '*.example' \) -exec rm -f {} + 2>/dev/null || true
 
 # ============================================================
-# 3. 网络配置（占位符兜底替换 + 生成 interfaces）
+# 2. 网络配置（占位符兜底替换 + 生成 interfaces）
 # ============================================================
 . "${LIB_DIR}/network.sh"
 configure_network
 
 # ============================================================
-# 4. 内核模块与参数（先加载模块再应用 sysctl，否则 BBR/conntrack 等键不存在）
+# 3. 内核模块与参数（先加载模块再应用 sysctl，否则 BBR/conntrack 等键不存在）
 # ============================================================
 log_info "加载内核模块..."
 for _conf_ in /etc/modules-load.d/*.conf; do
@@ -129,26 +125,26 @@ for _f_ in /etc/sysctl.d/*.conf; do
 done
 
 # ============================================================
-# 5. 服务注册与启动
+# 4. 服务注册与启动
 # ============================================================
 . "${LIB_DIR}/service.sh"
 enable_and_start_services
 
 # ============================================================
-# 6. 密钥注入 + Tailscale 登录
+# 5. 密钥注入 + Tailscale 登录
 # ============================================================
 . "${LIB_DIR}/secrets.sh"
 inject_secrets
 tailscale_up
 
 # ============================================================
-# 7. 完整性检查
+# 6. 完整性检查
 # ============================================================
 . "${LIB_DIR}/check.sh"
 check_system
 
 # ============================================================
-# 8. 汇总
+# 7. 汇总
 # ============================================================
 log_info "配置完成！服务状态:"
 rc-status

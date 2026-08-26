@@ -17,7 +17,9 @@ let
   dhcpLeaseTime = "24h";
   tsHostname = "alpine-router";
 
-  # 打包部署文件（install.sh + base/ + lib/ + scripts/ + package.list）
+  # 打包部署文件（install.sh + base/ + lib/ + scripts/）
+  # 注：软件包列表（package.list）只在 nanopi-r3s-rootfs 仓库维护，
+  #     deploy 依赖的软件包由 r3s 构建产物提供
   alpineRouterDeployPkg = pkgs.stdenv.mkDerivation {
     name = "alpine-router-deploy";
     src = ../../alpine-router;
@@ -61,7 +63,6 @@ let
       cp -r base $out/
       cp -r lib $out/
       cp -r scripts $out/
-      cp package.list $out/
       cp install.sh $out/install.sh
       chmod +x $out/install.sh
     '';

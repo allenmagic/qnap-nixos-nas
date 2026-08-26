@@ -2,6 +2,8 @@
 
 本目录用于管理 Alpine Linux 路由器 VM 的配置和部署（最初从 nanopi-r3s-rootfs 导入，现已解耦独立维护）。
 
+**职责边界**：本目录只含部署资产（配置覆盖 + 密钥注入）。软件包列表（package.list）**只在 nanopi-r3s-rootfs 仓库维护**——VM 的 rootfs 由 r3s CI 构建（release asset），包已装齐；install.sh 依赖的 rsync 也在 r3s package.list 中。
+
 ## 目录结构
 
 ```
@@ -16,7 +18,6 @@ alpine-router/
 │   ├── local.d/                      # 本地启动脚本
 │   └── tailscale/                    # Tailscale 配置
 ├── lib/                         # install.sh 的功能组件（source 使用）
-│   ├── packages.sh              # package.list 解析 + 安装
 │   ├── network.sh               # 占位符兜底替换 + interfaces 生成
 │   ├── service.sh               # OpenRC 服务注册与启动
 │   ├── secrets.sh               # Tailscale/Cloudflared 密钥注入
@@ -24,7 +25,6 @@ alpine-router/
 ├── scripts/
 │   └── network-watchdog.sh      # 网络看门狗运行时脚本（→ /usr/local/bin/）
 ├── install.sh                   # 主安装脚本（VM 内 root 执行）
-├── package.list                 # 声明式软件包列表（[pm]/[dl@] 语法）
 ├── env.example                  # 部署密钥模板
 └── README.md
 ```
@@ -160,7 +160,7 @@ br-lan ━━━━━━┫
 
 ## 更新配置
 
-修改本目录下的任何配置（`base/`、`lib/`、`install.sh`、`package.list` 等）后：
+修改本目录下的任何配置（`base/`、`lib/`、`install.sh` 等）后；软件包变更则改 nanopi-r3s-rootfs 的 `distros/alpine/package.list` 并重新构建 rootfs：
 
 ```bash
 # 1. 重新构建 NixOS（重新打包部署 tarball）
