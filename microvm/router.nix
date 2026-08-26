@@ -22,8 +22,6 @@ let
   # 真实值取 release 的 SHA256SUMS asset）
   imageRelease = "alpine-router-image-20260826";
   releaseBase = "https://github.com/allenmagic/alpine-router-image/releases/download/${imageRelease}";
-  # release 尚未产出，fakeSha256 占位（构建报错信息会显示真实值）
-  fakeSha = lib.fakeSha256;
 in
 
 {
@@ -34,7 +32,7 @@ in
       type = lib.types.path;
       default = pkgs.fetchurl {
         url = "${releaseBase}/vmlinuz-virt";
-        sha256 = fakeSha;
+        sha256 = "1e6bf9027720c75c3ed0d79171f21b5791ee40ca9795d07c7c6e04dc5ea2ae90";
       };
       description = ''
         Alpine 官方 vmlinuz-virt（alpine-router-image release asset）。
@@ -46,7 +44,7 @@ in
       type = lib.types.path;
       default = pkgs.fetchurl {
         url = "${releaseBase}/initrd";
-        sha256 = fakeSha;
+        sha256 = "c55459d765b645b08e6d3edc7676216395365a922d091d0fc3e317de0fe75730";
       };
       description = ''
         装配后的 initramfs（已注入 ext4 依赖链，alpine-router-image release asset）。
@@ -57,7 +55,7 @@ in
       type = lib.types.path;
       default = pkgs.fetchurl {
         url = "${releaseBase}/alpine-router-rootfs.qcow2";
-        sha256 = fakeSha;
+        sha256 = "66ba7d8994df0d682d50e852c7aa6ffde46ccac668b1570295757d6cb76ead37";
       };
       description = ''
         VM 根磁盘 qcow2（rootfs + modloop 模块，alpine-router-image release asset）。
