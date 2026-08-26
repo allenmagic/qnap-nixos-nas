@@ -8,11 +8,17 @@
 #     vmlinuz-virt / initrd（注入 ext4 依赖链）/ alpine-router-rootfs.qcow2
 #   - 本模块只 fetchurl 拉取 + 声明 VM，无任何本地镜像构建
 #   - disk-prep 服务把 release 镜像复制到 /var/lib/alpine-router（可写状态目录；
-#     store 只读，qemu 无法直接读写打开；autoCreate 语义是创建空盘而非复制模板）
-#     release 升级（store 路径变化）时自动重装状态
+#     store 只读无法直接读写打开）——release 升级（store 路径变化）自动重装状态
 #   - 配置：alpine-router-deploy 是唯一覆盖通道（r3s 出厂配置在部署时被
 #     NAS 权威版覆盖）；密钥 env 注入，绝不进入 release 产物与镜像
-#   - 网络拓扑：tap 直接挂进 br-wan / br-lan（microvm 的 bridge 类型接口）
+#
+# 后端与资源（cloud-hypervisor，2026-08-26）：
+#   - N5095 4 核：cpu3 经 isolcpus 隔离给路由器 VM 独占，vcpu0 pin 到 cpu3，
+#     vcpu1 无约束动态调度
+#   - 动态内存：virtio-balloon（CH 128M 对齐粒度），初始 balloon 256M，
+#     宿主 OOM 时放气归还
+#   - 网络：CH 不支持 qemu 的 bridge 接口类型，用 tap 接口 +
+#     systemd-networkd 在 tap 出现时自动加入 br-wan/br-lan
 { config, lib, pkgs, ... }:
 
 let
@@ -22,6 +28,14 @@ let
   # 真实值取 release 的 SHA256SUMS asset）
   imageRelease = "alpine-router-image-20260826";
   releaseBase = "https://github.com/allenmagic/alpine-router-image/releases/download/${imageRelease}";
+
+  # 客户机内核包装：CH runner（x86_64 分支）取 ${kernel.dev}/vmlinux——
+  # 内容实为 bzImage（官方 vmlinuz-virt），CH 按文件头自动识别加载
+  alpineKernel = pkgs.runCommand "vmlinuz-virt" { outputs = [ "out" "dev" ]; } ''
+    mkdir -p $out $dev
+    cp ${cfg.kernelFile} $out/bzImage
+    cp ${cfg.kernelFile} $dev/vmlinux
+  '';
 in
 
 {
@@ -64,6 +78,10 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    # CPU 独占：cpu3 隔离给路由器 VM（宿主调度器不再使用该核）。
+    # 注意：isolcpus 影响整个宿主——修改核数时同步此处与 affinity
+    boot.kernelParams = [ "isolcpus=3" "rcu_nocbs=3" ];
+
     # 首次启动 / release 升级时把镜像复制到可写状态目录
     systemd.services.alpine-router-disk = {
       wantedBy = [ "multi-user.target" ];
@@ -84,34 +102,58 @@ in
       '';
     };
 
+    # CH 的 tap 接口由 microvm 在 VM 启动时创建，networkd 在接口出现时
+    # 自动将其加入对应桥（bridge 接口类型是 qemu 特有，CH 不支持）
+    systemd.network.networks = {
+      "50-router-wan" = {
+        matchConfig.Name = "router-wan";
+        networkConfig.Bridge = "br-wan";
+      };
+      "50-router-lan" = {
+        matchConfig.Name = "router-lan";
+        networkConfig.Bridge = "br-lan";
+      };
+    };
+
     microvm.vms.alpine-router = {
-      hypervisor = "qemu";
-      vcpu = 2;
-      mem = 512;   # MB
+      autostart = true;
+      # 注意：config 是单个 NixOS 模块（非列表），VM 内选项挂在 microvm.* 下
+      config = {
+        microvm.hypervisor = "cloud-hypervisor";
 
-      # 客户机内核：官方 vmlinuz-virt（qemu runner 要求 $out/bzImage 文件名）
-      kernel = pkgs.runCommand "vmlinuz-virt" { } ''
-        mkdir -p $out
-        cp ${cfg.kernelFile} $out/bzImage
-      '';
+        microvm.vcpu = 2;   # vcpu0 独占 cpu3；vcpu1 动态
+        microvm.mem = 512;  # MB，guest 内存上限
 
-      # 官方 initramfs-virt（装配时已注入 ext4 依赖链）
-      initrdPath = "${cfg.initrd}";
-      # rootfstype=ext4：initramfs 的 "Loading boot drivers" 会据此 modprobe ext4
-      kernelParams = [ "root=/dev/vda" "rootfstype=ext4" "rw" ];
+        # 动态内存：virtio-balloon（CH 要求 128M 对齐粒度）。
+        # 初始 balloon 256M（guest 可用 256M），宿主 OOM 时自动放气归还。
+        # 备选：virtio-mem 热插拔（hotplugMem=256），可 ch-remote 手动伸缩
+        microvm.balloon = true;
+        microvm.initialBalloonMem = 256;
+        microvm.deflateOnOOM = true;
 
-      volumes = [{
-        # vda：根卷（disk-prep 服务维护的可写状态副本，qcow2）
-        image = "/var/lib/alpine-router/rootfs.qcow2";
-        mountPoint = "/";
-        autoCreate = false;
-      }];
+        # vcpu0 affinity（--cpus boot=N 由 microvm 生成，affinity 经 extraArgs 合并）
+        microvm.cloud-hypervisor.extraArgs = [ "--cpus" "affinity=[{vcpu=0,cpus=[3]}]" ];
 
-      # tap 由 microvm 创建并自动挂进宿主桥（与 bridges.nix 的 br-wan/br-lan 对接）
-      interfaces = [
-        { type = "bridge"; id = "router-wan"; bridge = "br-wan"; mac = "02:00:00:01:00:01"; }
-        { type = "bridge"; id = "router-lan"; bridge = "br-lan"; mac = "02:00:00:01:00:02"; }
-      ];
+        # 客户机内核 / initramfs（官方 virt 三件套，装配时注入 ext4 依赖链）
+        microvm.kernel = alpineKernel;
+        microvm.initrdPath = "${cfg.initrd}";
+        # rootfstype=ext4：initramfs 的 "Loading boot drivers" 会据此 modprobe ext4
+        microvm.kernelParams = [ "root=/dev/vda" "rootfstype=ext4" "rw" ];
+
+        microvm.volumes = [{
+          # vda：根卷（disk-prep 服务维护的可写状态副本）
+          image = "/var/lib/alpine-router/rootfs.qcow2";
+          mountPoint = "/";
+          autoCreate = false;
+          imageType = "qcow2";   # CH 的 --disk 默认 image_type=raw，必须显式声明
+        }];
+
+        # tap 由 microvm 创建，networkd 挂进 br-wan/br-lan
+        microvm.interfaces = [
+          { type = "tap"; id = "router-wan"; mac = "02:00:00:01:00:01"; }
+          { type = "tap"; id = "router-lan"; mac = "02:00:00:01:00:02"; }
+        ];
+      };
     };
   };
 }
