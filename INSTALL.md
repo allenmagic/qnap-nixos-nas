@@ -31,11 +31,11 @@
   ▼
 br-wan ── Alpine VM eth0 (DHCP)
               │ NAT/防火墙
-           Alpine VM eth1: 192.168.8.1
+           Alpine VM eth1: 192.168.10.1
   │
 br-lan（eno2，QNAP 网口2）
-  ├── NAS 宿主机 192.168.8.2
-  └── 内网设备 192.168.8.100-200（VM 提供 DHCP）
+  ├── NAS 宿主机 192.168.10.2
+  └── 内网设备 192.168.10.100-200（VM 提供 DHCP）
 ```
 
 ## 1. 制作启动盘并进入安装环境
@@ -172,14 +172,14 @@ reboot
 
 ## 4. 首次启动与基础配置
 
-> ⚠️ **此时 br-lan 上没有 DHCP 和网关**（Alpine 路由 VM 还没创建）。NAS 自身也没有外网（网关指向还不存在的 192.168.8.1）。
+> ⚠️ **此时 br-lan 上没有 DHCP 和网关**（Alpine 路由 VM 还没创建）。NAS 自身也没有外网（网关指向还不存在的 192.168.10.1）。
 
 **登录方式（二选一）**：
 
-- **方案 A（推荐）**：笔记本网线接 **eno2**，手动设置静态 IP `192.168.8.100/24`，然后：
+- **方案 A（推荐）**：笔记本网线接 **eno2**，手动设置静态 IP `192.168.10.100/24`，然后：
 
   ```bash
-  ssh nas@192.168.8.2    # 用第 3.3 步配置的密钥
+  ssh nas@192.168.10.2    # 用第 3.3 步配置的密钥
   ```
 
 - **方案 B**：HDMI 接显示器 + USB 键盘，控制台用 root 登录（第 3.4 步设的密码）。控制台已启用 kmscon + Noto Sans CJK 字体（`modules/system/console.nix`），可正常显示中文；若开机后 TTY 无显示，说明 i915 DRM 初始化异常，排查 `journalctl -u kmsconvt@tty1`。
@@ -247,7 +247,7 @@ setup-alpine
 | Keyboard layout | `us` `us` |
 | Hostname | `alpine-router` |
 | 网口 eth0（WAN） | `dhcp` |
-| 网口 eth1（LAN） | `static` → 地址 `192.168.8.1/24` |
+| 网口 eth1（LAN） | `static` → 地址 `192.168.10.1/24` |
 | Root password | **设置密码**（部署脚本 SSH 用） |
 | Timezone | `Asia/Shanghai` |
 | Proxy | 留空 |
@@ -260,8 +260,8 @@ setup-alpine
 
 ```bash
 # 从宿主机
-ping -c 3 192.168.8.1
-ssh root@192.168.8.1    # 用 setup-alpine 设的密码
+ping -c 3 192.168.10.1
+ssh root@192.168.10.1    # 用 setup-alpine 设的密码
 ```
 
 ## 6. 部署路由配置
@@ -286,24 +286,24 @@ sudo virsh reboot alpine-router
 
 ```bash
 rc-status                  # dnsmasq/chronyd/sshd/nftables 应已启动
-ip -brief addr             # eth0=DHCP(WAN)、eth1=192.168.8.1
-nft list ruleset | head    # 规则应包含 eth0/eth1 和 192.168.8.0/24
+ip -brief addr             # eth0=DHCP(WAN)、eth1=192.168.10.1
+nft list ruleset | head    # 规则应包含 eth0/eth1 和 192.168.10.0/24
 ```
 
 **客户端验证**（笔记本从静态 IP 改回 DHCP，仍接 eno2）：
 
 ```bash
-ip a                       # 应拿到 192.168.8.100-200 的地址，网关 192.168.8.1，DNS 192.168.8.1
+ip a                       # 应拿到 192.168.10.100-200 的地址，网关 192.168.10.1，DNS 192.168.10.1
 ping -c 3 8.8.8.8          # 外网连通（经 VM NAT）
-nslookup baidu.com 192.168.8.1   # DNS 解析正常
-ping -c 3 192.168.8.2      # 内网到 NAS 连通
+nslookup baidu.com 192.168.10.1   # DNS 解析正常
+ping -c 3 192.168.10.2      # 内网到 NAS 连通
 ```
 
 > 此时 NAS 宿主机也通过 VM 网关获得了外网访问。
 
 ## 7. Cockpit 与收尾
 
-1. 浏览器访问 **http://192.168.8.2:9090**，用 `nas` + 第 4 步设置的系统密码登录
+1. 浏览器访问 **http://192.168.10.2:9090**，用 `nas` + 第 4 步设置的系统密码登录
 2. 在 Cockpit「虚拟机」中确认 alpine-router 存在且运行
 3. 备份 VM 定义（建议）：
 
@@ -317,8 +317,8 @@ sudo virsh dumpxml alpine-router > /srv/data/alpine-router.xml
 
 - [ ] 重启 NAS 后 Btrfs RAID1 数据卷自动挂载（`btrfs filesystem show` 显示两个成员）
 - [ ] br-lan 客户端自动获取 DHCP 地址，外网与 DNS 正常
-- [ ] Samba 共享可挂载（`\\192.168.8.2\data`，用户名 nas）
-- [ ] NFS 共享可挂载（`mount -t nfs -o vers=4 192.168.8.2:/ /mnt`，应看到 data/cache/backup 三个目录）
+- [ ] Samba 共享可挂载（`\\192.168.10.2\data`，用户名 nas）
+- [ ] NFS 共享可挂载（`mount -t nfs -o vers=4 192.168.10.2:/ /mnt`，应看到 data/cache/backup 三个目录）
 - [ ] Syncthing(8384)、Navidrome(4533)、Feishin(9180) 端口可达
 - [ ] Cockpit 登录正常，虚拟机管理可用
 - [ ] 宿主 `sensors` 有风扇/温度读数，qnap8528 模块已加载
@@ -327,9 +327,9 @@ sudo virsh dumpxml alpine-router > /srv/data/alpine-router.xml
 
 | 项目 | 值 |
 |---|---|
-| NAS 宿主机 | 192.168.8.2（br-lan） |
-| Alpine VM LAN | 192.168.8.1（网关/DNS） |
-| DHCP 池 | 192.168.8.100 - 192.168.8.200 |
+| NAS 宿主机 | 192.168.10.2（br-lan） |
+| Alpine VM LAN | 192.168.10.1（网关/DNS） |
+| DHCP 池 | 192.168.10.100 - 192.168.10.200 |
 | SSH | 22（内网与 Tailscale 可密码登录，其他来源仅密钥） |
 | Cockpit | 9090（br-lan） |
 | Samba | 139/445 |

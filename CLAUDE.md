@@ -34,7 +34,7 @@ sops secrets/secrets.yaml                         # 编辑加密密钥（需要 
 ### 网络拓扑（关键设计）
 
 - 双网口各绑定一个桥：`eno1 → br-wan`、`eno2 → br-lan`（systemd-networkd 管理，`modules/network/bridges.nix`）。
-- **宿主机在 br-wan 上不配置 IP**——WAN（DHCP/NAT/防火墙）完全由 Alpine 路由 VM 负责。宿主机只在 br-lan 上有静态 IP `192.168.8.2/24`，网关指向 VM 的 `192.168.8.1`。
+- **宿主机在 br-wan 上不配置 IP**——WAN（DHCP/NAT/防火墙）完全由 Alpine 路由 VM 负责。宿主机只在 br-lan 上有静态 IP `192.168.10.2/24`，网关指向 VM 的 `192.168.10.1`。
 - 防火墙只在 br-lan 接口开放服务端口（`modules/network/default.nix`），端口列表对应 SSH/Samba/NFS/Syncthing/Navidrome/Cockpit。
 
 ### Alpine 路由 VM
@@ -57,13 +57,13 @@ sops secrets/secrets.yaml                         # 编辑加密密钥（需要 
 
 ## ⚠️ 当前状态与坑
 
-1. **内网网段为 `192.168.8.0/24`，且在多个文件硬编码**：`bridges.nix`（宿主机 IP/网关）、`samba.nix`（hosts allow）、`nfs.nix`（exports）、`syncthing.nix`（guiAddress）、`music.nix`（Navidrome/Feishin 绑定地址）、`microvm.router.vmIp` 选项（alpine-router-image 模块，deploy 脚本 ssh 目标）、**alpine-router-image 仓库的 `network.env`**（VM 网络参数权威源，含 TS_ADVERTISE_ROUTES）。修改网段时必须全局同步这些位置，否则服务绑定错 IP 或防火墙/共享拒绝访问。
+1. **内网网段为 `192.168.10.0/24`，且在多个文件硬编码**：`bridges.nix`（宿主机 IP/网关）、`samba.nix`（hosts allow）、`nfs.nix`（exports）、`syncthing.nix`（guiAddress）、`music.nix`（Navidrome/Feishin 绑定地址）、`microvm.router.vmIp` 选项（alpine-router-image 模块，deploy 脚本 ssh 目标）、**alpine-router-image 仓库的 `network.env`**（VM 网络参数权威源，含 TS_ADVERTISE_ROUTES）。修改网段时必须全局同步这些位置，否则服务绑定错 IP 或防火墙/共享拒绝访问。
 2. `hardware-configuration.nix` 被 `.gitignore` 忽略（规则 `/hardware-configuration.nix`），但当前已通过 `git add -N -f` 以 intent-to-add 状态暂存——**内容仍是占位模板**（空 kernelModules），不能用于真实安装。安装时用 `nixos-generate-config --root /mnt` 生成真实配置**覆盖**它并保持 intent-to-add 状态；`hardware-configuration.nix.example` 是占位模板。**flake 求值只能看到 git 跟踪的文件**——未暂存时 `nixos-rebuild --flake` 报 "not tracked by Git"。
 3. `secrets/secrets.yaml` 尚不存在。sops 模块引用了它但 `secrets` 集合为空；在 `modules/security/sops.nix` 中取消注释 secret 定义前，须先按 `secrets/README.md` 生成 age 密钥并创建加密文件。
 4. `modules/users/nas-user.nix` 的 SSH 公钥是占位注释——无任何密钥则无法 SSH 登录（密码登录已禁用）。`wheelNeedsPassword = true`。
 5. 数据盘为 Btrfs 原生 RAID1（无 mdadm）：`mkfs.btrfs -m raid1 -d raid1 -L data` 创建，挂载靠卷标，多设备由内核自动组装；`services.btrfs.autoScrub` 每月自动校验修复。
 6. `modules/security/sops.nix` 中 `defaultSopsFile = ../../secrets/secrets.yaml` 是相对路径——移动该文件时必须同步改路径。
-7. **Cockpit/nas 密码已配置**：`nas` 用户的 hash 已填在 `modules/users/nas-user.nix` 的 `hashedPassword`（安装即用，Cockpit/sudo/SSH 密码登录共用）。**⚠️ 仓库是公开的，hash 可被离线爆破——密码必须足够强且不复用；旧 hash 会永久留在 git 历史里**。改密码：`mkpasswd -m sha-512` 重新生成替换；需要加密管理时可用 sops-nix（`secrets/README.md`）。SSH 密码登录仅对内网与 Tailscale 网段放行（`ssh.nix` 的 Match Address 192.168.8.0/24,100.64.0.0/10），其他来源仅允许密钥。
+7. **Cockpit/nas 密码已配置**：`nas` 用户的 hash 已填在 `modules/users/nas-user.nix` 的 `hashedPassword`（安装即用，Cockpit/sudo/SSH 密码登录共用）。**⚠️ 仓库是公开的，hash 可被离线爆破——密码必须足够强且不复用；旧 hash 会永久留在 git 历史里**。改密码：`mkpasswd -m sha-512` 重新生成替换；需要加密管理时可用 sops-nix（`secrets/README.md`）。SSH 密码登录仅对内网与 Tailscale 网段放行（`ssh.nix` 的 Match Address 192.168.10.0/24,100.64.0.0/10），其他来源仅允许密钥。
 8. 配置权威源已移至 **alpine-router-image 仓库**：`base/` 的 `__XXX__` 占位符由该仓库构建时（network.sh 按 network.env）替换；本仓库已无 postPatch。R3S 遗留：`PROXY_SERVER_IP`（nftables vars 中被防火墙规则引用）、`local.d/99-hw-tweak.start`（R3S 网卡调优，VM 中无实际效果）。
 
 ## 代码风格

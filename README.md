@@ -162,7 +162,7 @@ reboot
 
 ```bash
 # SSH 登录
-ssh nas@192.168.8.2
+ssh nas@192.168.10.2
 
 # 生成 sops age 密钥
 sudo mkdir -p /var/lib/sops-nix
@@ -209,7 +209,7 @@ sudo virt-install \
 # 在 Alpine 控制台完成基础安装
 # - setup-alpine
 # - 配置 eth0 为 DHCP (WAN)
-# - 配置 eth1 为 192.168.8.1/24 (LAN)
+# - 配置 eth1 为 192.168.10.1/24 (LAN)
 # - 安装到磁盘 (sys 模式)
 
 # VM 重启后，部署配置
@@ -262,7 +262,7 @@ sudo systemctl restart samba
 
 ### Cockpit Web 管理
 
-浏览器访问 http://192.168.8.2:9090，用 `nas` 用户和系统密码登录，可管理虚拟机（创建/启动/停止/控制台）。
+浏览器访问 http://192.168.10.2:9090，用 `nas` 用户和系统密码登录，可管理虚拟机（创建/启动/停止/控制台）。
 
 > 注意：Cockpit 登录使用 PAM 密码认证，需要在 `modules/users/nas-user.nix` 中为 nas 用户设置系统密码（`mkpasswd -m sha-512` 生成哈希填入 `hashedPassword`）。
 
@@ -290,9 +290,9 @@ btrfs device stats /srv/data
 "30-br-lan" = {
   matchConfig.Name = "br-lan";
   networkConfig = {
-    Address = "192.168.8.2/24";  # 修改这里
-    Gateway = "192.168.8.1";
-    DNS = [ "192.168.8.1" ];
+    Address = "192.168.10.2/24";  # 修改这里
+    Gateway = "192.168.10.1";
+    DNS = [ "192.168.10.1" ];
   };
 };
 ```
@@ -355,7 +355,7 @@ ip link show br-wan
 ip link show br-lan
 
 # 测试连通性
-ping 192.168.8.1
+ping 192.168.10.1
 
 # 进入 VM 检查
 alpine-router-shell

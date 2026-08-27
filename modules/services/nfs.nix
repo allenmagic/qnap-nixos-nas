@@ -18,12 +18,12 @@
     # 客户端以普通用户（uid 与 nas 一致，通常 1000）挂载即可正常读写。
     exports = ''
       # NFSv4 根
-      /srv/nfs        192.168.8.0/24(rw,sync,no_subtree_check,root_squash,fsid=0)
+      /srv/nfs        192.168.10.0/24(rw,sync,no_subtree_check,root_squash,fsid=0)
 
       # 子共享
-      /srv/nfs/data   192.168.8.0/24(rw,sync,no_subtree_check,root_squash)
-      /srv/nfs/cache  192.168.8.0/24(rw,sync,no_subtree_check,root_squash)
-      /srv/nfs/backup 192.168.8.0/24(rw,sync,no_subtree_check,root_squash)
+      /srv/nfs/data   192.168.10.0/24(rw,sync,no_subtree_check,root_squash)
+      /srv/nfs/cache  192.168.10.0/24(rw,sync,no_subtree_check,root_squash)
+      /srv/nfs/backup 192.168.10.0/24(rw,sync,no_subtree_check,root_squash)
     '';
 
     nproc = 8;

@@ -30,7 +30,7 @@
     # 内网与 Tailscale 网段允许密码登录（内网设备配置密钥麻烦；Tailscale 自带
     # 加密隧道与设备认证，密码登录风险可控）；其余来源保持默认禁用密码、只认密钥。
     extraConfig = ''
-      Match Address 192.168.8.0/24,100.64.0.0/10
+      Match Address 192.168.10.0/24,100.64.0.0/10
         PasswordAuthentication yes
     '';
   };
