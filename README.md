@@ -41,7 +41,7 @@
 │   ├── system/                        # 基础系统配置（语言、软件包、Nix 设置）
 │   ├── hardware/                      # 硬件相关（风扇、传感器）
 │   ├── network/                       # 网络配置（桥接、防火墙）
-│   ├── virtualization/                # libvirtd 和 Alpine Router
+│   ├── virtualization/                # libvirtd + Alpine Router MicroVM（flake 模块引用）
 │   ├── services/                      # Samba、NFS、Syncthing、Navidrome、Cockpit
 │   ├── security/                      # SSH、sops-nix
 │   └── users/                         # 用户配置
@@ -49,14 +49,32 @@
 │   ├── README.md                      # sops-nix 使用指南
 │   └── secrets.yaml                   # 加密的密钥文件（需手动创建）
 └── alpine-router/
-    ├── base/                          # Alpine 路由 VM 配置源（占位符构建时替换）
-    ├── lib/                           # install.sh 功能组件（装包/网络/服务/密钥/检查）
-    ├── scripts/network-watchdog.sh    # 网络看门狗运行时脚本
-    ├── install.sh                     # VM 内主安装脚本
-    ├── package.list                   # 声明式软件包列表
-    ├── env.example                    # 部署密钥模板（Tailscale/Cloudflared）
+    ├── install.sh                     # VM 内密钥注入脚本
+    ├── lib/secrets.sh                 # 密钥注入（SSH 公钥/Tailscale/Cloudflared）
+    ├── env.example                    # 部署密钥模板（部署前填入真实值）
     └── README.md                      # Alpine Router VM 部署指南
 ```
+
+## Alpine Router VM 架构
+
+VM 的生命周期由 [alpine-router-image](https://github.com/allenmagic/alpine-router-image)
+仓库全权管理：
+
+| 环节 | 位置 |
+|---|---|
+| 镜像生产（rootfs + virt 三件套 + 配置烙入） | alpine-router-image CI → release asset |
+| 消费端声明（microvm 模块：fetchurl、CH 参数、disk-prep、tap 挂桥） | `alpine-router-image` 的 `nixosModules.router`（本仓库 flake input 引用） |
+| 密钥注入（deploy） | 本仓库 `alpine-router/`（install.sh + env 文件） |
+
+```nix
+# 启用 VM（参数见模块 options：cpu/mem/initialBalloonMem/wanBridge/lanBridge）
+microvm.router.enable = true;
+microvm.router.cpu = 3;    # 可选：N5095 独占末核（默认 0）
+```
+
+**升级镜像**：CI 出 release 自动同步 flake 模块的 tag+sha256 →
+`nix flake update` → `nixos-rebuild` → VM 自动重启（镜像路径含内容哈希）。
+**改密钥**：编辑 `/etc/libvirt/alpine-router.env` → `alpine-router-deploy`。
 
 ## 快速开始
 
