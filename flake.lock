@@ -1,5 +1,25 @@
 {
   "nodes": {
+    "alpine-router-image": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1787799121,
+        "narHash": "sha256-chcVwm6xWf2rH4IPfDveR52KXlJWN7btIl5cYGJqtD0=",
+        "owner": "allenmagic",
+        "repo": "alpine-router-image",
+        "rev": "1a89cc325d1edaf139d9675385c0c8d0a4fb027c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "allenmagic",
+        "repo": "alpine-router-image",
+        "type": "github"
+      }
+    },
     "microvm": {
       "inputs": {
         "nixpkgs": [
@@ -73,6 +93,7 @@
     },
     "root": {
       "inputs": {
+        "alpine-router-image": "alpine-router-image",
         "microvm": "microvm",
         "nixpkgs": "nixpkgs",
         "qnap8528": "qnap8528",

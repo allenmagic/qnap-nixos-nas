@@ -14,15 +14,22 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # MicroVM（Alpine 路由 VM 的替代方案，POC，见 microvm/router.nix）
+    # MicroVM（Alpine 路由 VM 的替代方案，POC）
     microvm = {
       url = "github:astro/microvm.nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Alpine 路由 VM：镜像生产 + 消费端模块（microvm.router 选项定义于此，
+    # 镜像 release 的 tag+sha256 与该仓库 CI 同源，升级只 flake update）
+    alpine-router-image = {
+      url = "github:allenmagic/alpine-router-image";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
   };
 
-  outputs = { self, nixpkgs, qnap8528, sops-nix, microvm, ... }@inputs: {
+  outputs = { self, nixpkgs, qnap8528, sops-nix, microvm, alpine-router-image, ... }@inputs: {
     nixosConfigurations.default = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       specialArgs = {
