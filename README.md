@@ -75,15 +75,13 @@ microvm.router = {
   #   生效需要）；宿主桥 br-wan/br-lan 须已由 modules/network/bridges.nix 创建。
 
   # ── CPU ──
-  cpu = 3;
+  cpu = 0;
   #   隔离给 VM 独占的宿主核号：isolcpus=N + rcu_nocbs=N，宿主调度器
-  #   不再使用该核；vcpu0 经 CH affinity pin 到该核。
-  #   默认 0（任何机器通用）；N5095 4 核建议 3 独占末核。
+  #   不再使用该核；vcpu0 经 CH affinity pin 到该核。默认 0。
   #   ⚠️ 核号必须真实存在，改此参数需重启宿主。
   vcpus = 2;
   #   vCPU 总数：vcpu0 独占 `cpu` 指定的隔离核，其余 vCPU 由宿主调度器
-  #   在非隔离核上动态调度。默认 2（1 独占 + 1 动态）；
-  #   N5095 可设 3（1 独占 + 2 动态，宿主剩 3 核）。
+  #   在非隔离核上动态调度。默认 2（1 独占 + 1 动态）。
 
   # ── 内存 ──
   mem = 512;
