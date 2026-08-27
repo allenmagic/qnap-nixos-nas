@@ -10,7 +10,6 @@
     # 用户组
     extraGroups = [
       "wheel"      # sudo 权限
-      "libvirtd"   # VM 管理
       "storage"    # 存储访问
     ];
 

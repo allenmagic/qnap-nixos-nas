@@ -39,15 +39,14 @@ sops secrets/secrets.yaml                         # 编辑加密密钥（需要 
 
 ### Alpine 路由 VM
 
-- VM 本身**不在 NixOS 中声明**（需手动 `virt-install` 创建，见 `alpine-router/README.md`），NixOS 只负责打包和分发其配置。VM 镜像为 Alpine **3.24-stable**（virt ISO 3.24.1），virt-install 的 `--os-variant` 用 `alpinelinux3.23`（osinfo-db 尚无 3.24 条目，3.23 是最接近的）。
-- **Alpine 路由 VM 的全部实现都在 alpine-router-image 仓库**：配置权威源（`base/` + `network.env`，CI 烙进镜像）+ microvm 消费端模块（`nixosModules.router`，含镜像 fetchurl/CH 声明/disk-prep/tap 挂桥）+ deploy 密钥注入资产（`deploy-assets/`，模块内打包为 `/etc/libvirt/alpine-router-deploy.tar.gz` 并提供 `alpine-router-deploy`/`alpine-router-shell` 命令）。本仓库零 VM 实现代码。**改配置**：alpine-router-image（base/network.env）→ CI → NAS `nix flake update`（模块内 tag+sha256 与 CI 同仓库同 commit）→ rebuild → 重启 VM（disk-prep 重装状态）→ deploy 注入密钥；**改密钥**：编辑 `/etc/libvirt/alpine-router.env` → `alpine-router-deploy`。**软件包列表（package.list）只在 nanopi-r3s-rootfs 仓库维护**（alpine-router-image 是其一次性拷贝）。
+- **Alpine 路由 VM 的全部实现都在 alpine-router-image 仓库**：配置权威源（`base/` + `network.env`，CI 烙进镜像）+ microvm 消费端模块（`nixosModules.router`，含镜像 fetchurl/CH 声明/disk-prep/tap 挂桥）+ deploy 密钥注入资产（`deploy-assets/`，模块内打包为 `/etc/libvirt/alpine-router-deploy.tar.gz` 并提供 `alpine-router-deploy`/`alpine-router-shell` 命令）。VM 全声明式（cloud-hypervisor 后端），libvirtd/virt-install 方案已退役。本仓库零 VM 实现代码。**改配置**：alpine-router-image（base/network.env）→ CI → NAS `nix flake update`（模块内 tag+sha256 与 CI 同仓库同 commit）→ rebuild → 重启 VM（disk-prep 重装状态）→ deploy 注入密钥；**改密钥**：编辑 `/etc/libvirt/alpine-router.env` → `alpine-router-deploy`。**软件包列表（package.list）只在 nanopi-r3s-rootfs 仓库维护**（alpine-router-image 是其一次性拷贝）。
 - `install.sh` 在 VM 内只执行密钥注入（lib/secrets.sh）：SSH 公钥 → `/root/.ssh/authorized_keys`、Tailscale authkey、Cloudflared token；结束（含失败）即删除 env 文件。
 - 密钥经 env 文件注入：NAS 上 `/etc/libvirt/alpine-router.env`（模板 `env.example`，chmod 600）由 `alpine-router-deploy` scp 到 VM，install.sh 结束（含失败）即删除；密钥不进入部署包和 nix store。
 - `alpine-router-deploy` 包装脚本：ping 检查 VM 在线 → scp tarball → scp 可选 env 密钥文件 → ssh 解包执行 install.sh。VM_IP 来自模块常量。
 - 更新路由配置的完整流程：修改 alpine-router-image 的 `base/` → 触发 CI → NAS `nix flake update` + rebuild（详见上一段）。
 - **MicroVM 方案**（POC，默认关闭）：消费端声明在 **alpine-router-image 仓库的 `nixosModules.router`**（本仓库通过 flake input 引用，`modules/virtualization/default.nix` imports；本地 router.nix 已删除）。模块内含镜像 fetchurl 三资产（tag+sha256 与 CI 同仓库锁定）、`alpine-router-disk` 状态盘服务（复制到 `/var/lib/alpine-router/rootfs.qcow2`，release 升级自动重装）、tap 自动挂桥 networkd、CH 声明（cpu 隔离/affinity/balloon/vsock cid 3）。启用：`microvm.router.enable = true`（参数见模块 options：cpu/mem/initialBalloonMem/wanBridge/lanBridge/三资产覆盖）。deploy 是唯一密钥注入通道。
 - MicroVM 后端为 **cloud-hypervisor**（更轻量）：VM 内选项挂 `microvm.*` 下（经 `microvm.vms.<name>.config` 模块传入，**不是**直接写在 vms.<name> 下）。CPU：`cpu`（默认 0）经 isolcpus/rcu_nocbs 隔离并由 vcpu0 affinity（`affinity=[0@[N]]`，CH v53 语法）pin 独占，其余 vCPU（`vcpus` 选项，默认 2）动态调度。内存：balloon（128M 对齐粒度，初始 256M + deflateOnOOM）。网络：CH 不支持 qemu 的 bridge 接口类型，用 tap 接口 + networkd（`50-router-wan/lan`）在 tap 出现时自动挂 br-wan/br-lan。内核包装要提供 dev 输出（CH runner 取 `${kernel.dev}/vmlinux`，内容实为 bzImage 自动识别）；volumes 必须显式 `imageType = "qcow2"`（CH 默认 raw）。
-- 系统 Web 管理通过 **Cockpit**（9090，`modules/services/cockpit.nix`），当前启用 `cockpit-machines` 插件（依赖 `virtualisation.libvirtd.dbus.enable`）；可按需加 podman/files/zfs 等插件。virt-manager/virt-viewer 等 GUI 工具已移除，命令行用 virsh/libguestfs。
+- 系统 Web 管理通过 **Cockpit**（9090，`modules/services/cockpit.nix`），当前无插件（cockpit-machines 与 libvirtd 已随 VM 方案迁移退役——CH VM 不归 Cockpit 管）；可按需加 podman/files/zfs 等插件。
 
 ### 硬件与密钥
 

@@ -41,7 +41,7 @@
 │   ├── system/                        # 基础系统配置（语言、软件包、Nix 设置）
 │   ├── hardware/                      # 硬件相关（风扇、传感器）
 │   ├── network/                       # 网络配置（桥接、防火墙）
-│   ├── virtualization/                # libvirtd + Alpine Router MicroVM（flake 模块引用）
+│   ├── virtualization/                # Alpine Router MicroVM（flake 模块引用）
 │   ├── services/                      # Samba、NFS、Syncthing、Navidrome、Cockpit
 │   ├── security/                      # SSH、sops-nix
 │   └── users/                         # 用户配置
@@ -183,38 +183,13 @@ sudo nixos-rebuild switch --flake .#default
 
 ### 5. 部署 Alpine Router VM
 
-#### 手动方式
+### 5. 启用 Alpine Router MicroVM
 
-```bash
-# 下载 Alpine ISO（3.24-stable 分支）
-wget https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/x86_64/alpine-virt-3.24.1-x86_64.iso
+VM 全声明式（镜像与模块在 alpine-router-image 仓库），启用方式见上文
+「Alpine Router VM 架构」：`microvm.router.enable = true` →
+`nixos-rebuild switch` → 重启宿主（isolcpus 生效）→ 填 env 密钥 →
+`alpine-router-deploy`。详细分步见 [INSTALL.md](INSTALL.md)。
 
-# 创建虚拟磁盘
-sudo qemu-img create -f qcow2 /var/lib/libvirt/images/alpine-router.qcow2 8G
-
-# 创建 VM
-sudo virt-install \
-  --name alpine-router \
-  --memory 512 \
-  --vcpus 2 \
-  --disk path=/var/lib/libvirt/images/alpine-router.qcow2,format=qcow2 \
-  --cdrom alpine-virt-3.24.1-x86_64.iso \
-  --network bridge=br-wan,model=virtio \
-  --network bridge=br-lan,model=virtio \
-  --graphics none \
-  --console pty,target_type=serial \
-  --os-variant alpinelinux3.23 \
-  --autostart
-
-# 在 Alpine 控制台完成基础安装
-# - setup-alpine
-# - 配置 eth0 为 DHCP (WAN)
-# - 配置 eth1 为 192.168.10.1/24 (LAN)
-# - 安装到磁盘 (sys 模式)
-
-# VM 重启后，部署配置
-alpine-router-deploy
-```
 
 ## 日常使用
 

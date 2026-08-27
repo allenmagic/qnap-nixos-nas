@@ -6,13 +6,13 @@
     enable = true;
 
     # 插件列表，可按需添加：
-    #   pkgs.cockpit-machines      - 虚拟机管理（依赖 libvirtd 的 dbus.enable）
     #   pkgs.cockpit-podman        - 容器管理
     #   pkgs.cockpit-files         - 文件管理
     #   pkgs.cockpit-zfs           - ZFS 管理
     #   pkgs.cockpit-dockermanager - Docker 管理
+    # 注：cockpit-machines（虚拟机管理）已移除——路由 VM 由 microvm 声明式
+    #     管理（cloud-hypervisor，Cockpit 不可见），libvirtd 已退役
     plugins = [
-      pkgs.cockpit-machines
     ];
 
     # 监听端口（默认 9090）

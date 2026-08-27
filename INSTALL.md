@@ -208,84 +208,53 @@ btrfs filesystem show          # 数据卷 RAID1 应显示两块成员盘
 btrfs device stats /srv/data   # 校验错误计数应为 0
 ```
 
-## 5. 创建 Alpine 路由 VM
+## 5. 启用 Alpine Router MicroVM
 
-### 5.1 创建虚拟磁盘和 VM
+VM 全声明式：镜像与消费端模块都在 alpine-router-image 仓库（flake input 已引用）。
 
 ```bash
-# 下载 Alpine virt ISO（若还没拷到 NAS）
-wget https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/x86_64/alpine-virt-3.24.1-x86_64.iso
+# 1. 启用（参数可选，见 README「Alpine Router VM 架构」完整参考）
+#   在任意配置模块中加入：
+#   microvm.router.enable = true;
 
-sudo qemu-img create -f qcow2 /var/lib/libvirt/images/alpine-router.qcow2 8G
+# 2. 重建系统
+sudo nixos-rebuild switch --flake .#default
 
-sudo virt-install \
-  --name alpine-router \
-  --memory 512 \
-  --vcpus 2 \
-  --disk path=/var/lib/libvirt/images/alpine-router.qcow2,format=qcow2 \
-  --cdrom alpine-virt-3.24.1-x86_64.iso \
-  --network bridge=br-wan,model=virtio \
-  --network bridge=br-lan,model=virtio \
-  --graphics none \
-  --console pty,target_type=serial \
-  --os-variant alpinelinux3.23 \
-  --autostart
+# 3. 重启宿主（isolcpus 内核参数生效需要）
+sudo reboot
 ```
 
-### 5.2 在 VM 内完成 Alpine 基础安装
+重启后 VM 自动启动（fetchurl 拉镜像 → disk-prep 状态盘 → cloud-hypervisor →
+tap 自动挂桥）。验证：
 
 ```bash
-sudo virsh console alpine-router   # 进入串口控制台（退出：Ctrl+]）
-# 登录 root（初始无密码），执行：
-setup-alpine
+systemctl status microvm@alpine-router     # VM 服务状态
+journalctl -u microvm@alpine-router -f     # VM 启动日志（串口输出）
+ping -c 3 192.168.10.1                     # VM LAN 口可达
 ```
 
-`setup-alpine` 交互选项：
-
-| 项目 | 选择 |
-|---|---|
-| Keyboard layout | `us` `us` |
-| Hostname | `alpine-router` |
-| 网口 eth0（WAN） | `dhcp` |
-| 网口 eth1（LAN） | `static` → 地址 `192.168.10.1/24` |
-| Root password | **设置密码**（部署脚本 SSH 用） |
-| Timezone | `Asia/Shanghai` |
-| Proxy | 留空 |
-| NTP | `chrony` |
-| APK mirror | 任选（建议国内镜像） |
-| SSH | `openssh` |
-| Disk | `sda`，模式 `sys`（安装到磁盘） |
-
-安装完成后 `reboot`，VM 重启后验证：
+## 6. 注入密钥
 
 ```bash
-# 从宿主机
-ping -c 3 192.168.10.1
-ssh root@192.168.10.1    # 用 setup-alpine 设的密码
-```
-
-## 6. 部署路由配置
-
-```bash
-# （可选）配置部署密钥：Tailscale / Cloudflared
+# 1. 从模块提供的模板生成 env 文件
 sudo cp /etc/libvirt/alpine-router.env.example /etc/libvirt/alpine-router.env
 sudo chmod 600 /etc/libvirt/alpine-router.env
-# 编辑填入 SSH_PUBLIC_KEY / TAILSCALE_AUTH_KEY / CLOUDFLARED_TOKEN（不需要则跳过此步）
 
-# 在宿主机上执行（需已在 env 中填入 SSH 公钥）
+# 2. 编辑填入密钥（占位项见模板内【占位·部署前替换】标记）
+#    SSH_PUBLIC_KEY      ← ssh-keygen 生成（deploy 通道与日常登录，支持多行多 key）
+#    TAILSCALE_AUTH_KEY  ← Tailscale 管理后台一次性 key
+#    CLOUDFLARED_TOKEN   ← Cloudflare Zero Trust 隧道 token
+
+# 3. 部署（scp 到 VM 注入，结束后清理）
 alpine-router-deploy
-
-# ⚠️ 首次部署后重启 VM，使网络接口配置完全生效
-sudo virsh reboot alpine-router
-# 或 alpine-router-shell 'reboot'
 ```
 
 ### 验证
 
-**VM 内部**（`alpine-router-shell` 或 `virsh console`）：
+**VM 内部**（`alpine-router-shell`）：
 
 ```bash
-rc-status                  # dnsmasq/chronyd/sshd/nftables 应已启动
+rc-status                  # dnsmasq/chronyd/sshd/nftables/tailscale 应已启动
 ip -brief addr             # eth0=DHCP(WAN)、eth1=192.168.10.1
 nft list ruleset | head    # 规则应包含 eth0/eth1 和 192.168.10.0/24
 ```
@@ -304,14 +273,8 @@ ping -c 3 192.168.10.2      # 内网到 NAS 连通
 ## 7. Cockpit 与收尾
 
 1. 浏览器访问 **http://192.168.10.2:9090**，用 `nas` + 第 4 步设置的系统密码登录
-2. 在 Cockpit「虚拟机」中确认 alpine-router 存在且运行
-3. 备份 VM 定义（建议）：
+   （VM 管理不在 Cockpit——microvm VM 由 systemd 声明式管理：`systemctl status microvm@alpine-router`）
 
-```bash
-sudo virsh dumpxml alpine-router > /srv/data/alpine-router.xml
-```
-
-4. （可选）Tailscale：在 VM 上执行 `tailscale up` 或部署时传 `TAILSCALE_AUTHKEY`
 
 ## 8. 验收清单
 
@@ -320,7 +283,7 @@ sudo virsh dumpxml alpine-router > /srv/data/alpine-router.xml
 - [ ] Samba 共享可挂载（`\\192.168.10.2\data`，用户名 nas）
 - [ ] NFS 共享可挂载（`mount -t nfs -o vers=4 192.168.10.2:/ /mnt`，应看到 data/cache/backup 三个目录）
 - [ ] Syncthing(8384)、Navidrome(4533)、Feishin(9180) 端口可达
-- [ ] Cockpit 登录正常，虚拟机管理可用
+- [ ] Cockpit 登录正常
 - [ ] 宿主 `sensors` 有风扇/温度读数，qnap8528 模块已加载
 
 ## 附录 A：默认地址与端口
@@ -344,7 +307,7 @@ sudo virsh dumpxml alpine-router > /srv/data/alpine-router.xml
 |---|---|
 | 重启后数据卷未挂载 | `btrfs device scan && mount /srv/data`；确认 filesystem.nix 卷标与 `mkfs.btrfs -L` 一致 |
 | flake 报 not tracked by Git | `git add -N -f hardware-configuration.nix` |
-| VM 无法启动 | `sudo virsh list --all`、`sudo virsh console alpine-router` |
+| VM 无法启动 | `journalctl -u microvm@alpine-router -b`（串口输出）、`systemctl status alpine-router-disk`（状态盘）、`microvm -r alpine-router`（前台串口调试） |
 | DHCP 客户端拿不到地址 | VM 内检查 `rc-service dnsmasq status`、`cat /etc/dnsmasq.d/10-dhcp-eth1.conf` |
 | 外网不通但 VM 正常 | VM 内 `nft list ruleset` 检查 NAT 规则、`ip route` 检查默认路由 |
 | Cockpit 登录失败 | 确认 nas 系统密码已设置并 `nixos-rebuild switch` 过 |
