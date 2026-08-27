@@ -67,9 +67,42 @@ VM 的生命周期由 [alpine-router-image](https://github.com/allenmagic/alpine
 | 密钥注入（deploy） | 本仓库 `alpine-router/`（install.sh + env 文件） |
 
 ```nix
-# 启用 VM（参数见模块 options：cpu/mem/initialBalloonMem/wanBridge/lanBridge）
-microvm.router.enable = true;
-microvm.router.cpu = 3;    # 可选：N5095 独占末核（默认 0）
+# 完整配置参考（模块已 import，见 modules/virtualization/default.nix）
+microvm.router = {
+  # ── 总开关 ──
+  enable = true;
+  #   启用 Alpine Router MicroVM。enable 后需重启宿主（isolcpus 内核参数
+  #   生效需要）；宿主桥 br-wan/br-lan 须已由 modules/network/bridges.nix 创建。
+
+  # ── CPU 独占 ──
+  cpu = 3;
+  #   隔离给 VM 独占的宿主核号：isolcpus=N + rcu_nocbs=N，宿主调度器
+  #   不再使用该核；vcpu0 经 CH affinity pin 到该核，vcpu1 动态调度。
+  #   默认 0（任何机器通用）；N5095 4 核建议 3 独占末核。
+  #   ⚠️ 核号必须真实存在，改此参数需重启宿主。
+
+  # ── 内存 ──
+  mem = 512;
+  #   guest 内存上限（MB）。
+  initialBalloonMem = 256;
+  #   初始 balloon 大小（MB，CH 要求 128M 对齐）：guest 实际可用 =
+  #   mem - balloon；宿主 OOM 时自动放气归还（deflateOnOOM）。
+  #   默认 512 / 256。
+
+  # ── 网络桥（须与 modules/network/bridges.nix 一致，一般不用改） ──
+  wanBridge = "br-wan";
+  #   WAN 侧宿主桥：VM 启动时 microvm 创建 tap "router-wan"，
+  #   networkd 自动将其加入此桥。
+  lanBridge = "br-lan";
+  #   LAN 侧宿主桥（tap "router-lan"）。
+
+  # ── 镜像资产（本地调试覆盖，正常无需设置） ──
+  # kernelFile  = /path/to/vmlinuz-virt;
+  # initrd      = /path/to/initrd;
+  # rootfsImage = /path/to/alpine-router-rootfs.qcow2;
+  #   默认从 alpine-router-image release fetchurl（tag+sha256 模块内锁定）。
+  #   CI 不可用需本地构建镜像时在此覆盖（见 alpine-router-image README）。
+};
 ```
 
 **升级镜像**：CI 出 release 自动同步 flake 模块的 tag+sha256 →
