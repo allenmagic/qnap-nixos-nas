@@ -48,12 +48,6 @@
 ├── secrets/
 │   ├── README.md                      # sops-nix 使用指南
 │   └── secrets.yaml                   # 加密的密钥文件（需手动创建）
-└── alpine-router/
-    ├── install.sh                     # VM 内密钥注入脚本
-    ├── lib/secrets.sh                 # 密钥注入（SSH 公钥/Tailscale/Cloudflared）
-    ├── env.example                    # 部署密钥模板（部署前填入真实值）
-    └── README.md                      # Alpine Router VM 部署指南
-```
 
 ## Alpine Router VM 架构
 
@@ -64,7 +58,7 @@ VM 的生命周期由 [alpine-router-image](https://github.com/allenmagic/alpine
 |---|---|
 | 镜像生产（rootfs + virt 三件套 + 配置烙入） | alpine-router-image CI → release asset |
 | 消费端声明（microvm 模块：fetchurl、CH 参数、disk-prep、tap 挂桥） | `alpine-router-image` 的 `nixosModules.router`（本仓库 flake input 引用） |
-| 密钥注入（deploy） | 本仓库 `alpine-router/`（install.sh + env 文件） |
+| 密钥注入（deploy） | alpine-router-image 模块内置（`alpine-router-deploy`/`alpine-router-shell` 命令 + 宿主 env 文件） |
 
 ```nix
 # 完整配置参考（模块已 import，见 modules/virtualization/default.nix）
@@ -240,8 +234,12 @@ sudo nixos-rebuild switch --rollback
 ### Alpine Router 配置更新
 
 ```bash
-# 在修改 alpine-router/ 下配置后（base/、lib/、install.sh、package.list 等）
+# 改配置：alpine-router-image 仓库（base/ 或 network.env）→ 触发 CI →
+#         NAS 上 nix flake update + rebuild（VM 自动重启，磁盘路径含内容哈希）
+nix flake update
 sudo nixos-rebuild switch --flake .#default
+
+# 改密钥：编辑 /etc/libvirt/alpine-router.env 后
 alpine-router-deploy
 
 # 或手动 SSH 进入 VM
@@ -366,8 +364,8 @@ alpine-router-shell
 ## 设计决策
 
 - **Alpine VM 路由而非 NixOS 原生路由**：复用成熟的 Alpine 路由配置体系；故障隔离（路由问题不影响 NAS 存储服务）；内存占用小（512MB）；网络配置可独立备份与恢复
-- **install.sh 而非 cloud-init**：配置更新只需重新运行脚本；可逐步调试；直接复用 base/ 文件结构；可添加任意自定义逻辑
-- **模块化**：每个功能独立一个模块文件（`modules/` 与 `alpine-router/lib/`），便于启用/禁用与维护
+- **镜像烙入 + 密钥注入分离**：全部配置在 CI 构建时烙进镜像（出厂即正确），deploy 只注入密钥——配置更新走 CI 单仓库闭环，密钥更新走宿主本地秒级通道
+- **模块化**：每个功能独立一个模块文件（`modules/`），VM 实现集中在 alpine-router-image 仓库
 
 ## 参考文档
 
