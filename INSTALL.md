@@ -146,6 +146,15 @@ openssh.authorizedKeys.keys = [
 ];
 ```
 
+**root 的 GitHub SSH key**（yunshu-nix 是私有仓库，`git+ssh` 输入拉取需要；
+nixos-rebuild 以 root 运行）：
+
+```bash
+sudo mkdir -p /root/.ssh && sudo chmod 700 /root/.ssh
+sudo cp ~/.ssh/github_key /root/.ssh/id_ed25519   # 你的 GitHub 私钥
+sudo chmod 600 /root/.ssh/id_ed25519
+```
+
 > Btrfs 数据卷无需任何 UUID 配置——挂载靠卷标（label），多设备成员由内核自动组装。
 
 ### 3.4 安装

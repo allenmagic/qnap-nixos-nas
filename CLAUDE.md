@@ -46,6 +46,11 @@ sops secrets/secrets.yaml                         # 编辑加密密钥（需要 
 - 更新路由配置的完整流程：修改 alpine-router-image 的 `base/` → 触发 CI → NAS `nix flake update` + rebuild（详见上一段）。
 - **MicroVM 方案**（POC，默认关闭）：消费端声明在 **alpine-router-image 仓库的 `nixosModules.router`**（本仓库通过 flake input 引用，`modules/virtualization/default.nix` imports；本地 router.nix 已删除）。模块内含镜像 fetchurl 三资产（tag+sha256 与 CI 同仓库锁定）、`alpine-router-disk` 状态盘服务（复制到 `/var/lib/alpine-router/rootfs.qcow2`，release 升级自动重装）、tap 自动挂桥 networkd、CH 声明（cpu 隔离/affinity/balloon/vsock cid 3）。启用：`microvm.router.enable = true`（参数见模块 options：cpu/mem/initialBalloonMem/wanBridge/lanBridge/三资产覆盖）。deploy 是唯一密钥注入通道。
 - MicroVM 后端为 **cloud-hypervisor**（更轻量）：VM 内选项挂 `microvm.*` 下（经 `microvm.vms.<name>.config` 模块传入，**不是**直接写在 vms.<name> 下）。CPU：`cpu`（默认 0）经 isolcpus/rcu_nocbs 隔离并由 vcpu0 affinity（`affinity=[0@[N]]`，CH v53 语法）pin 独占，其余 vCPU（`vcpus` 选项，默认 2）动态调度。内存：balloon（128M 对齐粒度，初始 256M + deflateOnOOM）。网络：CH 不支持 qemu 的 bridge 接口类型，用 tap 接口 + networkd（`50-router-wan/lan`）在 tap 出现时自动挂 br-wan/br-lan。内核包装要提供 dev 输出（CH runner 取 `${kernel.dev}/vmlinux`，内容实为 bzImage 自动识别）；volumes 必须显式 `imageType = "qcow2"`（CH 默认 raw）。
+
+### YunShu 透明网关容器（浮动网关）
+
+- **NixOS declarative container**（`modules/services/yunshu.nix`，flake input `yunshu-router`——**私有仓库**，git+ssh 访问，NAS 真机 root 需配 GitHub SSH key）：策略分流 VPN + 透明代理（gatewayMode：容器开 ip_forward/nftables 转发、YunShu 自带 TUN 路由，禁用独立 7890 代理）。veth 挂 br-lan，静态 `192.168.10.3`；直连流量默认路由 = 路由器 VM（`upstreamGateway`）。
+- **浮动网关（VRRP/keepalived）**：内网设备 DHCP 网关 = 浮动 IP `192.168.10.254`（`network.env` 的 `LAN_GATEWAY`）。yunshu 容器为 MASTER（priority 150，持有 .254，策略分流）；Alpine VM 为 BACKUP（`base/keepalived/keepalived.conf`，priority 100，nopreempt——容器不可用时接管 .254，**降级为纯直连 NAT** 保连通）。VRRP 参数（vrid=10/auth_pass=alpine-float/floatIp）三处同步：`network.env` + VM `base/keepalived/` + yunshu-nix 的 container 模块 options。
 - 系统 Web 管理通过 **Cockpit**（9090，`modules/services/cockpit.nix`），当前无插件（cockpit-machines 与 libvirtd 已随 VM 方案迁移退役——CH VM 不归 Cockpit 管）；可按需加 podman/files/zfs 等插件。
 
 ### 硬件与密钥
@@ -56,7 +61,7 @@ sops secrets/secrets.yaml                         # 编辑加密密钥（需要 
 
 ## ⚠️ 当前状态与坑
 
-1. **内网网段为 `192.168.10.0/24`，且在多个文件硬编码**：`bridges.nix`（宿主机 IP/网关）、`samba.nix`（hosts allow）、`nfs.nix`（exports）、`syncthing.nix`（guiAddress）、`music.nix`（Navidrome/Feishin 绑定地址）、`microvm.router.vmIp` 选项（alpine-router-image 模块，deploy 脚本 ssh 目标）、**alpine-router-image 仓库的 `network.env`**（VM 网络参数权威源，含 TS_ADVERTISE_ROUTES）。修改网段时必须全局同步这些位置，否则服务绑定错 IP 或防火墙/共享拒绝访问。
+1. **内网网段为 `192.168.10.0/24`，且在多个文件硬编码**：`bridges.nix`（宿主机 IP/网关）、`samba.nix`（hosts allow）、`nfs.nix`（exports）、`syncthing.nix`（guiAddress）、`music.nix`（Navidrome/Feishin 绑定地址）、`microvm.router.vmIp` 选项（alpine-router-image 模块，deploy 脚本 ssh 目标）、**alpine-router-image 仓库的 `network.env`**（VM 网络参数权威源，含 TS_ADVERTISE_ROUTES 与 LAN_GATEWAY 浮动网关）、**yunshu 容器参数**（`modules/services/yunshu.nix` 的 lanAddress/upstreamGateway/floatIp）。修改网段时必须全局同步这些位置，否则服务绑定错 IP 或防火墙/共享拒绝访问。
 2. `hardware-configuration.nix` 被 `.gitignore` 忽略（规则 `/hardware-configuration.nix`），但当前已通过 `git add -N -f` 以 intent-to-add 状态暂存——**内容仍是占位模板**（空 kernelModules），不能用于真实安装。安装时用 `nixos-generate-config --root /mnt` 生成真实配置**覆盖**它并保持 intent-to-add 状态；`hardware-configuration.nix.example` 是占位模板。**flake 求值只能看到 git 跟踪的文件**——未暂存时 `nixos-rebuild --flake` 报 "not tracked by Git"。
 3. `secrets/secrets.yaml` 尚不存在。sops 模块引用了它但 `secrets` 集合为空；在 `modules/security/sops.nix` 中取消注释 secret 定义前，须先按 `secrets/README.md` 生成 age 密钥并创建加密文件。
 4. `modules/users/nas-user.nix` 的 SSH 公钥是占位注释——无任何密钥则无法 SSH 登录（密码登录已禁用）。`wheelNeedsPassword = true`。
