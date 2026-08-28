@@ -51,14 +51,14 @@
 
 ## Alpine Router VM 架构
 
-VM 的生命周期由 [alpine-router-image](https://github.com/allenmagic/alpine-router-image)
+VM 的生命周期由 [microvm-router-image](https://github.com/allenmagic/microvm-router-image)
 仓库全权管理：
 
 | 环节 | 位置 |
 |---|---|
-| 镜像生产（rootfs + virt 三件套 + 配置烙入） | alpine-router-image CI → release asset |
-| 消费端声明（microvm 模块：fetchurl、CH 参数、disk-prep、tap 挂桥） | `alpine-router-image` 的 `nixosModules.router`（本仓库 flake input 引用） |
-| 密钥注入（deploy） | alpine-router-image 模块内置（`alpine-router-deploy`/`alpine-router-shell` 命令 + 宿主 env 文件） |
+| 镜像生产（rootfs + virt 三件套 + 配置烙入） | microvm-router-image CI → release asset |
+| 消费端声明（microvm 模块：fetchurl、CH 参数、disk-prep、tap 挂桥） | `microvm-router-image` 的 `nixosModules.router`（本仓库 flake input 引用） |
+| 密钥注入（deploy） | microvm-router-image 模块内置（`alpine-router-deploy`/`alpine-router-shell` 命令 + 宿主 env 文件） |
 
 ```nix
 # 完整配置参考（模块已 import，见 modules/virtualization/default.nix）
@@ -96,8 +96,8 @@ microvm.router = {
   # kernelFile  = /path/to/vmlinuz-virt;
   # initrd      = /path/to/initrd;
   # rootfsImage = /path/to/alpine-router-rootfs.qcow2;
-  #   默认从 alpine-router-image release fetchurl（tag+sha256 模块内锁定）。
-  #   CI 不可用需本地构建镜像时在此覆盖（见 alpine-router-image README）。
+  #   默认从 microvm-router-image release fetchurl（tag+sha256 模块内锁定）。
+  #   CI 不可用需本地构建镜像时在此覆盖（见 microvm-router-image README）。
 };
 ```
 
@@ -181,11 +181,9 @@ mkpasswd -m sha-512
 sudo nixos-rebuild switch --flake .#default
 ```
 
-### 5. 部署 Alpine Router VM
-
 ### 5. 启用 Alpine Router MicroVM
 
-VM 全声明式（镜像与模块在 alpine-router-image 仓库），启用方式见上文
+VM 全声明式（镜像与模块在 microvm-router-image 仓库），启用方式见上文
 「Alpine Router VM 架构」：`microvm.router.enable = true` →
 `nixos-rebuild switch` → 重启宿主（isolcpus 生效）→ 填 env 密钥 →
 `alpine-router-deploy`。详细分步见 [INSTALL.md](INSTALL.md)。
@@ -209,7 +207,7 @@ sudo nixos-rebuild switch --rollback
 ### Alpine Router 配置更新
 
 ```bash
-# 改配置：alpine-router-image 仓库（base/ 或 network.env）→ 触发 CI →
+# 改配置：microvm-router-image 仓库（base/ 或 network.env）→ 触发 CI →
 #         NAS 上 nix flake update + rebuild（VM 自动重启，磁盘路径含内容哈希）
 nix flake update
 sudo nixos-rebuild switch --flake .#default
@@ -340,7 +338,7 @@ alpine-router-shell
 
 - **Alpine VM 路由而非 NixOS 原生路由**：复用成熟的 Alpine 路由配置体系；故障隔离（路由问题不影响 NAS 存储服务）；内存占用小（512MB）；网络配置可独立备份与恢复
 - **镜像烙入 + 密钥注入分离**：全部配置在 CI 构建时烙进镜像（出厂即正确），deploy 只注入密钥——配置更新走 CI 单仓库闭环，密钥更新走宿主本地秒级通道
-- **模块化**：每个功能独立一个模块文件（`modules/`），VM 实现集中在 alpine-router-image 仓库
+- **模块化**：每个功能独立一个模块文件（`modules/`），VM 实现集中在 microvm-router-image 仓库
 
 ## 参考文档
 

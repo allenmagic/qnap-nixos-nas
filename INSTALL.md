@@ -210,7 +210,7 @@ btrfs device stats /srv/data   # 校验错误计数应为 0
 
 ## 5. 启用 Alpine Router MicroVM
 
-VM 全声明式：镜像与消费端模块都在 alpine-router-image 仓库（flake input 已引用）。
+VM 全声明式：镜像与消费端模块都在 microvm-router-image 仓库（flake input 已引用）。
 
 ```bash
 # 1. 启用（参数可选，见 README「Alpine Router VM 架构」完整参考）

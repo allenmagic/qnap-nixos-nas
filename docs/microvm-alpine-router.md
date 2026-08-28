@@ -50,7 +50,7 @@ rootfs 则是从我的 [nanopi-r3s-rootfs](https://github.com/allenmagic/nanopi-
 
 ## 第三版：镜像生产独立成仓库，CI 出单文件
 
-接下来把「镜像装配」从 NAS 的 Nix 构建中剥离，独立成 [alpine-router-image](https://github.com/allenmagic/alpine-router-image) 仓库：
+接下来把「镜像装配」从 NAS 的 Nix 构建中剥离，独立成 [microvm-router-image](https://github.com/allenmagic/microvm-router-image) 仓库：
 
 ```
 GitHub Actions（一次点击）
@@ -67,10 +67,10 @@ GitHub Actions（一次点击）
 
 ## 第四版：消费端模块化 + Cloud Hypervisor
 
-最后一步收敛：microvm 声明（镜像 fetchurl、CH 参数、状态盘、tap 挂桥）也迁入 alpine-router-image，以 **flake 模块**形式发布。NAS 侧启用整个路由器只剩：
+最后一步收敛：microvm 声明（镜像 fetchurl、CH 参数、状态盘、tap 挂桥）也迁入 microvm-router-image，以 **flake 模块**形式发布。NAS 侧启用整个路由器只剩：
 
 ```nix
-imports = [ inputs.alpine-router-image.nixosModules.router ];
+imports = [ inputs.microvm-router-image.nixosModules.router ];
 microvm.router = {
   enable = true;
 
@@ -119,8 +119,8 @@ WSL2（KVM 嵌套虚拟化）上完成全链路实测：
 
 | 环节 | 位置 |
 |---|---|
-| rootfs 构建 + 配置烙入 + 镜像装配 | alpine-router-image CI → release |
-| microvm 消费端声明（fetchurl/CH/状态盘/挂桥） | alpine-router-image 的 nixosModules.router |
+| rootfs 构建 + 配置烙入 + 镜像装配 | microvm-router-image CI → release |
+| microvm 消费端声明（fetchurl/CH/状态盘/挂桥） | microvm-router-image 的 nixosModules.router |
 | 密钥注入 | 宿主 env 文件 → alpine-router-deploy |
 | NAS 侧 VM 代码量 | **零**（一个 flake input + 一个 enable） |
 
@@ -132,4 +132,4 @@ WSL2（KVM 嵌套虚拟化）上完成全链路实测：
 
 ---
 
-**相关仓库**：[qnap-nixos-nas](https://github.com/allenmagic/qnap-nixos-nas) · [alpine-router-image](https://github.com/allenmagic/alpine-router-image) · [nanopi-r3s-rootfs](https://github.com/allenmagic/nanopi-r3s-rootfs)
+**相关仓库**：[qnap-nixos-nas](https://github.com/allenmagic/qnap-nixos-nas) · [microvm-router-image](https://github.com/allenmagic/microvm-router-image) · [nanopi-r3s-rootfs](https://github.com/allenmagic/nanopi-r3s-rootfs)
