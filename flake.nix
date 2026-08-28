@@ -28,10 +28,8 @@
     };
 
     # YunShu 透明网关容器（策略分流 VPN + 透明代理；浮动网关 MASTER 节点）
-    # 私有仓库（含商业软件拆包代码）——git+ssh 访问：
-    # 构建机（NAS 真机的 root）需配置 GitHub SSH key
     yunshu-router = {
-      url = "git+ssh://git@github.com/allenmagic/yunshu-nix.git";
+      url = "github:allenmagic/yunshu-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
