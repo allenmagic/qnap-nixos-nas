@@ -68,7 +68,7 @@ sops secrets/secrets.yaml                         # 编辑加密密钥（需要 
 5. 数据盘为 Btrfs 原生 RAID1（无 mdadm）：`mkfs.btrfs -m raid1 -d raid1 -L data` 创建，挂载靠卷标，多设备由内核自动组装；`services.btrfs.autoScrub` 每月自动校验修复。
 6. `modules/security/sops.nix` 中 `defaultSopsFile = ../../secrets/secrets.yaml` 是相对路径——移动该文件时必须同步改路径。
 7. **Cockpit/nas 密码已配置**：`nas` 用户的 hash 已填在 `modules/users/nas-user.nix` 的 `hashedPassword`（安装即用，Cockpit/sudo/SSH 密码登录共用）。**⚠️ 仓库是公开的，hash 可被离线爆破——密码必须足够强且不复用；旧 hash 会永久留在 git 历史里**。改密码：`mkpasswd -m sha-512` 重新生成替换；需要加密管理时可用 sops-nix（`secrets/README.md`）。SSH 密码登录仅对内网与 Tailscale 网段放行（`ssh.nix` 的 Match Address 192.168.10.0/24,100.64.0.0/10），其他来源仅允许密钥。
-8. 配置权威源已移至 **alpine-router-image 仓库**：`base/` 的 `__XXX__` 占位符由该仓库构建时（network.sh 按 network.env）替换；本仓库已无 postPatch。R3S 遗留仅剩：`PROXY_SERVER_IP`（nftables vars 中被防火墙规则引用）。R3S 硬件专属脚本已清除（LED 脚本曾致 local 服务 boot 报错、hw-tweak 对 virtio 无效果）。
+8. 配置权威源已移至 **alpine-router-image 仓库**：`base/` 的 `__XXX__` 占位符由该仓库构建时（network.sh 按 network.env）替换；本仓库已无 postPatch。R3S 遗留已全部清除（LED/hw-tweak 硬件脚本、PROXY 死规则均已删）。
 
 ## 代码风格
 
