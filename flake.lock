@@ -97,7 +97,8 @@
         "microvm": "microvm",
         "nixpkgs": "nixpkgs",
         "qnap8528": "qnap8528",
-        "sops-nix": "sops-nix"
+        "sops-nix": "sops-nix",
+        "yunshu-router": "yunshu-router"
       }
     },
     "sops-nix": {
@@ -134,6 +135,26 @@
       "original": {
         "type": "git",
         "url": "https://spectrum-os.org/git/spectrum"
+      }
+    },
+    "yunshu-router": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1787885699,
+        "narHash": "sha256-tZwVcbjRFLkigMcIKbRJZ+4+m4YVqd3lv2Fk7b2z8vI=",
+        "ref": "refs/heads/main",
+        "rev": "65f0529ea6bf34271b89e22b90ed561ea91752c3",
+        "revCount": 4,
+        "type": "git",
+        "url": "ssh://git@github.com/allenmagic/yunshu-nix.git"
+      },
+      "original": {
+        "type": "git",
+        "url": "ssh://git@github.com/allenmagic/yunshu-nix.git"
       }
     }
   },

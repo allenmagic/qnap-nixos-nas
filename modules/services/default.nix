@@ -7,5 +7,6 @@
     ./syncthing.nix
     ./music.nix
     ./cockpit.nix
+    ./yunshu.nix
   ];
 }
