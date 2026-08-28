@@ -7,11 +7,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1787901537,
-        "narHash": "sha256-q6FCIhKGpIcwiPC+M2nbLG1kxWwotZumB0V8KE0l2gI=",
+        "lastModified": 1787908356,
+        "narHash": "sha256-W77f/aZsHyZG5lykc9pXTnXtepIJbuC1AHCloV36tDM=",
         "owner": "allenmagic",
         "repo": "alpine-router-image",
-        "rev": "a0e4491f837f9f15066d3a7dde89221f40465db3",
+        "rev": "3a97ce7359019fee99d55cc6f17d280e6f76b416",
         "type": "github"
       },
       "original": {
