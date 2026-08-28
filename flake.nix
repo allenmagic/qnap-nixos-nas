@@ -20,10 +20,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Alpine 路由 VM：镜像生产 + 消费端模块（microvm.router 选项定义于此，
-    # 镜像 release 的 tag+sha256 与该仓库 CI 同源，升级只 flake update）
-    alpine-router-image = {
-      url = "github:allenmagic/alpine-router-image";
+    # 路由 VM（microvm-router-image）：镜像生产 + 消费端模块（microvm.router
+    # 选项定义于此，镜像 release 的 tag+sha256 与该仓库 CI 同源，升级只 flake update）
+    microvm-router-image = {
+      url = "github:allenmagic/microvm-router-image";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -35,7 +35,7 @@
 
   };
 
-  outputs = { self, nixpkgs, qnap8528, sops-nix, microvm, alpine-router-image, ... }@inputs: {
+  outputs = { self, nixpkgs, qnap8528, sops-nix, microvm, microvm-router-image, ... }@inputs: {
     nixosConfigurations.default = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       specialArgs = {

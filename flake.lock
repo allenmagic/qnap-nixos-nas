@@ -1,25 +1,5 @@
 {
   "nodes": {
-    "alpine-router-image": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1787908356,
-        "narHash": "sha256-W77f/aZsHyZG5lykc9pXTnXtepIJbuC1AHCloV36tDM=",
-        "owner": "allenmagic",
-        "repo": "alpine-router-image",
-        "rev": "3a97ce7359019fee99d55cc6f17d280e6f76b416",
-        "type": "github"
-      },
-      "original": {
-        "owner": "allenmagic",
-        "repo": "alpine-router-image",
-        "type": "github"
-      }
-    },
     "microvm": {
       "inputs": {
         "nixpkgs": [
@@ -38,6 +18,26 @@
       "original": {
         "owner": "astro",
         "repo": "microvm.nix",
+        "type": "github"
+      }
+    },
+    "microvm-router-image": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1787913753,
+        "narHash": "sha256-XMIMgtOjEwzlBOwyfHSsvep4c69JqtniXYMMkzeESS8=",
+        "owner": "allenmagic",
+        "repo": "microvm-router-image",
+        "rev": "c56806a3243ce4b14c7a8533bbdbed0ae68bfaa3",
+        "type": "github"
+      },
+      "original": {
+        "owner": "allenmagic",
+        "repo": "microvm-router-image",
         "type": "github"
       }
     },
@@ -93,8 +93,8 @@
     },
     "root": {
       "inputs": {
-        "alpine-router-image": "alpine-router-image",
         "microvm": "microvm",
+        "microvm-router-image": "microvm-router-image",
         "nixpkgs": "nixpkgs",
         "qnap8528": "qnap8528",
         "sops-nix": "sops-nix",

@@ -39,12 +39,12 @@ sops secrets/secrets.yaml                         # 编辑加密密钥（需要 
 
 ### Alpine 路由 VM
 
-- **Alpine 路由 VM 的全部实现都在 alpine-router-image 仓库**：配置权威源（`base/` + `network.env`，CI 烙进镜像）+ microvm 消费端模块（`nixosModules.router`，含镜像 fetchurl/CH 声明/disk-prep/tap 挂桥）+ deploy 密钥注入资产（`deploy-assets/`，模块内打包为 `/etc/libvirt/alpine-router-deploy.tar.gz` 并提供 `alpine-router-deploy`/`alpine-router-shell` 命令）。VM 全声明式（cloud-hypervisor 后端），libvirtd/virt-install 方案已退役。本仓库零 VM 实现代码。**改配置**：alpine-router-image（base/network.env）→ CI → NAS `nix flake update`（模块内 tag+sha256 与 CI 同仓库同 commit）→ rebuild → 重启 VM（disk-prep 重装状态）→ deploy 注入密钥；**改密钥**：编辑 `/etc/libvirt/alpine-router.env` → `alpine-router-deploy`。**软件包列表（package.list）只在 nanopi-r3s-rootfs 仓库维护**（alpine-router-image 是其一次性拷贝）。
+- **路由 VM 的全部实现都在 microvm-router-image 仓库**（原 alpine-router-image，2026-08-28 GitHub 改名）：配置权威源（`base/` + `network.env`，CI 烙进镜像）+ microvm 消费端模块（`nixosModules.router`，含镜像 fetchurl/CH 声明/disk-prep/tap 挂桥）+ deploy 密钥注入资产（`deploy-assets/`，模块内打包为 `/etc/libvirt/alpine-router-deploy.tar.gz` 并提供 `alpine-router-deploy`/`alpine-router-shell` 命令）。VM 全声明式（cloud-hypervisor 后端），libvirtd/virt-install 方案已退役。本仓库零 VM 实现代码。**改配置**：microvm-router-image（base/network.env）→ CI（`microvm-router-build`，release tag `microvm-router-vm-YYYYMMDD`，自动同步模块内 tag+sha256）→ NAS `nix flake update` → rebuild → 重启 VM（disk-prep 重装状态）→ deploy 注入密钥；**改密钥**：编辑 `/etc/libvirt/alpine-router.env` → `alpine-router-deploy`。**软件包列表（package.list）上游权威在 nanopi-r3s-rootfs 仓库**，microvm-router-image 的副本已按 VM 场景分叉（alpine 链无 sing-box 段；gentoo 链独立清单）。
 - `install.sh` 在 VM 内只执行密钥注入（lib/secrets.sh）：SSH 公钥 → `/root/.ssh/authorized_keys`、Tailscale authkey、Cloudflared token；结束（含失败）即删除 env 文件。
 - 密钥经 env 文件注入：NAS 上 `/etc/libvirt/alpine-router.env`（模板 `env.example`，chmod 600）由 `alpine-router-deploy` scp 到 VM，install.sh 结束（含失败）即删除；密钥不进入部署包和 nix store。
 - `alpine-router-deploy` 包装脚本：ping 检查 VM 在线 → scp tarball → scp 可选 env 密钥文件 → ssh 解包执行 install.sh。VM_IP 来自模块常量。
-- 更新路由配置的完整流程：修改 alpine-router-image 的 `base/` → 触发 CI → NAS `nix flake update` + rebuild（详见上一段）。
-- **MicroVM 方案**（POC，默认关闭）：消费端声明在 **alpine-router-image 仓库的 `nixosModules.router`**（本仓库通过 flake input 引用，`modules/virtualization/default.nix` imports；本地 router.nix 已删除）。模块内含镜像 fetchurl 三资产（tag+sha256 与 CI 同仓库锁定）、`alpine-router-disk` 状态盘服务（复制到 `/var/lib/alpine-router/rootfs.qcow2`，release 升级自动重装）、tap 自动挂桥 networkd、CH 声明（cpu 隔离/affinity/balloon/vsock cid 3）。启用：`microvm.router.enable = true`（参数见模块 options：cpu/mem/initialBalloonMem/wanBridge/lanBridge/三资产覆盖）。deploy 是唯一密钥注入通道。
+- 更新路由配置的完整流程：修改 microvm-router-image 的 `base/` → 触发 CI → NAS `nix flake update` + rebuild（详见上一段）。
+- **MicroVM 方案**（POC 已转正，默认关闭）：消费端声明在 **microvm-router-image 仓库的 `nixosModules.router`**（本仓库通过 flake input 引用，`modules/virtualization/default.nix` imports；本地 router.nix 已删除）。模块内含镜像 fetchurl 三资产（tag+sha256 与 CI 同仓库锁定）、`alpine-router-disk` 状态盘服务（复制到 `/var/lib/alpine-router/rootfs.qcow2`，release 升级自动重装）、tap 自动挂桥 networkd、CH 声明（cpu 隔离/affinity/balloon/vsock cid 3）。启用：`microvm.router.enable = true`（参数见模块 options：os/cpu/vcpus/mem/initialBalloonMem/wanBridge/lanBridge/三资产覆盖；os=alpine|gentoo 双发行版，均为 musl+OpenRC）。deploy 是唯一密钥注入通道。
 - MicroVM 后端为 **cloud-hypervisor**（更轻量）：VM 内选项挂 `microvm.*` 下（经 `microvm.vms.<name>.config` 模块传入，**不是**直接写在 vms.<name> 下）。CPU：`cpu`（默认 0）经 isolcpus/rcu_nocbs 隔离并由 vcpu0 affinity（`affinity=[0@[N]]`，CH v53 语法）pin 独占，其余 vCPU（`vcpus` 选项，默认 2）动态调度。内存：balloon（128M 对齐粒度，初始 256M + deflateOnOOM）。网络：CH 不支持 qemu 的 bridge 接口类型，用 tap 接口 + networkd（`50-router-wan/lan`）在 tap 出现时自动挂 br-wan/br-lan。内核包装要提供 dev 输出（CH runner 取 `${kernel.dev}/vmlinux`，内容实为 bzImage 自动识别）；volumes 必须显式 `imageType = "qcow2"`（CH 默认 raw）。
 
 ### YunShu 透明网关容器（浮动网关）
@@ -61,14 +61,14 @@ sops secrets/secrets.yaml                         # 编辑加密密钥（需要 
 
 ## ⚠️ 当前状态与坑
 
-1. **内网网段为 `192.168.10.0/24`，且在多个文件硬编码**：`bridges.nix`（宿主机 IP/网关）、`samba.nix`（hosts allow）、`nfs.nix`（exports）、`syncthing.nix`（guiAddress）、`music.nix`（Navidrome/Feishin 绑定地址）、`microvm.router.vmIp` 选项（alpine-router-image 模块，deploy 脚本 ssh 目标）、**alpine-router-image 仓库的 `network.env`**（VM 网络参数权威源，含 TS_ADVERTISE_ROUTES 与 LAN_GATEWAY 浮动网关）、**yunshu 容器参数**（`modules/services/yunshu.nix` 的 lanAddress/upstreamGateway/floatIp）。修改网段时必须全局同步这些位置，否则服务绑定错 IP 或防火墙/共享拒绝访问。
+1. **内网网段为 `192.168.10.0/24`，且在多个文件硬编码**：`bridges.nix`（宿主机 IP/网关）、`samba.nix`（hosts allow）、`nfs.nix`（exports）、`syncthing.nix`（guiAddress）、`music.nix`（Navidrome/Feishin 绑定地址）、`microvm.router.vmIp` 选项（microvm-router-image 模块，deploy 脚本 ssh 目标）、**microvm-router-image 仓库的 `network.env`**（VM 网络参数权威源，含 TS_ADVERTISE_ROUTES 与 LAN_GATEWAY 浮动网关）、**yunshu 容器参数**（`modules/services/yunshu.nix` 的 lanAddress/upstreamGateway/floatIp）。修改网段时必须全局同步这些位置，否则服务绑定错 IP 或防火墙/共享拒绝访问。
 2. `hardware-configuration.nix` 被 `.gitignore` 忽略（规则 `/hardware-configuration.nix`），但当前已通过 `git add -N -f` 以 intent-to-add 状态暂存——**内容仍是占位模板**（空 kernelModules），不能用于真实安装。安装时用 `nixos-generate-config --root /mnt` 生成真实配置**覆盖**它并保持 intent-to-add 状态；`hardware-configuration.nix.example` 是占位模板。**flake 求值只能看到 git 跟踪的文件**——未暂存时 `nixos-rebuild --flake` 报 "not tracked by Git"。
 3. `secrets/secrets.yaml` 尚不存在。sops 模块引用了它但 `secrets` 集合为空；在 `modules/security/sops.nix` 中取消注释 secret 定义前，须先按 `secrets/README.md` 生成 age 密钥并创建加密文件。
 4. `modules/users/nas-user.nix` 的 SSH 公钥是占位注释——无任何密钥则无法 SSH 登录（密码登录已禁用）。`wheelNeedsPassword = true`。
 5. 数据盘为 Btrfs 原生 RAID1（无 mdadm）：`mkfs.btrfs -m raid1 -d raid1 -L data` 创建，挂载靠卷标，多设备由内核自动组装；`services.btrfs.autoScrub` 每月自动校验修复。
 6. `modules/security/sops.nix` 中 `defaultSopsFile = ../../secrets/secrets.yaml` 是相对路径——移动该文件时必须同步改路径。
 7. **Cockpit/nas 密码已配置**：`nas` 用户的 hash 已填在 `modules/users/nas-user.nix` 的 `hashedPassword`（安装即用，Cockpit/sudo/SSH 密码登录共用）。**⚠️ 仓库是公开的，hash 可被离线爆破——密码必须足够强且不复用；旧 hash 会永久留在 git 历史里**。改密码：`mkpasswd -m sha-512` 重新生成替换；需要加密管理时可用 sops-nix（`secrets/README.md`）。SSH 密码登录仅对内网与 Tailscale 网段放行（`ssh.nix` 的 Match Address 192.168.10.0/24,100.64.0.0/10），其他来源仅允许密钥。
-8. 配置权威源已移至 **alpine-router-image 仓库**：`base/` 的 `__XXX__` 占位符由该仓库构建时（network.sh 按 network.env）替换；本仓库已无 postPatch。R3S 遗留已全部清除（LED/hw-tweak 硬件脚本、PROXY 死规则均已删）。
+8. 配置权威源已移至 **microvm-router-image 仓库**：`base/` 的 `__XXX__` 占位符由该仓库构建时（network.sh 按 network.env）替换；本仓库已无 postPatch。R3S 遗留已全部清除（LED/hw-tweak 硬件脚本、PROXY 死规则均已删）。
 
 ## 代码风格
 
