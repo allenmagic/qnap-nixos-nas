@@ -52,20 +52,19 @@
       #   tailscale-auth-key: tskey-auth-xxxxxxxxxxxxxxxx
       #   cloudflared-token: eyJhIjoi...
       # 注入语义：router-vm-deploy 在每次 VM 启动后自动 scp 进 guest
-      # /run（guest 无状态，重启即清、重新注入）；tailscale 登录为手动
-      # 触发：ssh root@192.168.10.1 'tailscale up'
-      # ssh-public-key = {
-      #   owner = "root";
-      #   mode = "0400";
-      # };
-      # tailscale-auth-key = {
-      #   owner = "root";
-      #   mode = "0400";
-      # };
-      # cloudflared-token = {
-      #   owner = "root";
-      #   mode = "0400";
-      # };
+      # /run（guest 无状态，重启即清、重新注入）；tailscale 注入后自动登录。
+      ssh-public-key = {
+        owner = "root";
+        mode = "0400";
+      };
+      tailscale-auth-key = {
+        owner = "root";
+        mode = "0400";
+      };
+      cloudflared-token = {
+        owner = "root";
+        mode = "0400";
+      };
     };
   };
 }
