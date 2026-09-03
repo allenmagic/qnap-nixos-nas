@@ -1,46 +1,5 @@
 {
   "nodes": {
-    "microvm": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ],
-        "spectrum": "spectrum"
-      },
-      "locked": {
-        "lastModified": 1787551247,
-        "narHash": "sha256-ogq7JBsR2aJko074/LQOIPcectSXnq2YshD2TG0PP5A=",
-        "owner": "astro",
-        "repo": "microvm.nix",
-        "rev": "ad098ef4658203b3bbc39523ca3f72ece1553e24",
-        "type": "github"
-      },
-      "original": {
-        "owner": "astro",
-        "repo": "microvm.nix",
-        "type": "github"
-      }
-    },
-    "microvm-router-image": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1787913753,
-        "narHash": "sha256-XMIMgtOjEwzlBOwyfHSsvep4c69JqtniXYMMkzeESS8=",
-        "owner": "allenmagic",
-        "repo": "microvm-router-image",
-        "rev": "c56806a3243ce4b14c7a8533bbdbed0ae68bfaa3",
-        "type": "github"
-      },
-      "original": {
-        "owner": "allenmagic",
-        "repo": "microvm-router-image",
-        "type": "github"
-      }
-    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1787101114,
@@ -93,12 +52,31 @@
     },
     "root": {
       "inputs": {
-        "microvm": "microvm",
-        "microvm-router-image": "microvm-router-image",
         "nixpkgs": "nixpkgs",
         "qnap8528": "qnap8528",
+        "router-image": "router-image",
         "sops-nix": "sops-nix",
         "yunshu-router": "yunshu-router"
+      }
+    },
+    "router-image": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1788427603,
+        "narHash": "sha256-Up8avShQI5gFpgE3YavcwhZo7giEjEm34avf++zVXi0=",
+        "owner": "allenmagic",
+        "repo": "router-image",
+        "rev": "6a0c79bc9879c41e721fd3e73ff27635b3a9d59c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "allenmagic",
+        "repo": "router-image",
+        "type": "github"
       }
     },
     "sops-nix": {
@@ -119,22 +97,6 @@
         "owner": "Mic92",
         "repo": "sops-nix",
         "type": "github"
-      }
-    },
-    "spectrum": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1785761586,
-        "narHash": "sha256-MWOMVqJJERwjQGgRIv8d6rlEBqbLM3VZWxHkNKIIZNw=",
-        "ref": "refs/heads/main",
-        "rev": "a7762d6f54b40560dd5255ce902e6e6a5d980fe9",
-        "revCount": 1416,
-        "type": "git",
-        "url": "https://spectrum-os.org/git/spectrum"
-      },
-      "original": {
-        "type": "git",
-        "url": "https://spectrum-os.org/git/spectrum"
       }
     },
     "yunshu-router": {

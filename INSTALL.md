@@ -208,55 +208,72 @@ btrfs filesystem show          # 数据卷 RAID1 应显示两块成员盘
 btrfs device stats /srv/data   # 校验错误计数应为 0
 ```
 
-## 5. 启用 Alpine Router MicroVM
+## 5. 启用 Router VM
 
-VM 全声明式：镜像与消费端模块都在 microvm-router-image 仓库（flake input 已引用）。
+VM 全声明式：镜像与消费端模块都在 router-image 仓库（flake input 已引用，
+`services.router-vm` 已在 `modules/virtualization/default.nix` 中启用）。
 
 ```bash
-# 1. 启用（参数可选，见 README「Alpine Router VM 架构」完整参考）
-#   在任意配置模块中加入：
-#   microvm.router.enable = true;
-
-# 2. 重建系统
+# 1. 重建系统
 sudo nixos-rebuild switch --flake .#default
 
-# 3. 重启宿主（isolcpus 内核参数生效需要）
+# 2. 重启宿主（isolcpus 内核参数生效需要）
 sudo reboot
 ```
 
-重启后 VM 自动启动（fetchurl 拉镜像 → disk-prep 状态盘 → cloud-hypervisor →
+重启后 VM 自动启动（fetchurl 拉镜像 → rootfs 只读副本 → cloud-hypervisor →
 tap 自动挂桥）。验证：
 
 ```bash
-systemctl status microvm@alpine-router     # VM 服务状态
-journalctl -u microvm@alpine-router -f     # VM 启动日志（串口输出）
+systemctl status router-vm                 # VM 服务状态
+systemctl status router-vm-deploy          # 密钥注入（无密钥时为空注入，属正常）
+router-vm-console                          # VM 串口输出（网络故障时的排障通道）
 ping -c 3 192.168.10.1                     # VM LAN 口可达
 ```
 
-## 6. 注入密钥
+## 6. 配置密钥（sops-nix）
+
+密钥由宿主 sops-nix 加密进 git、解密到 `/run/secrets`，`router-vm-deploy`
+在 **每次 VM 启动后自动注入** guest（guest 无状态，重启即清、重新注入）。
 
 ```bash
-# 1. 从模块提供的模板生成 env 文件
-sudo cp /etc/libvirt/alpine-router.env.example /etc/libvirt/alpine-router.env
-sudo chmod 600 /etc/libvirt/alpine-router.env
+# 1. 生成 age 密钥（首次）
+sudo mkdir -p /var/lib/sops-nix
+sudo age-keygen -o /var/lib/sops-nix/key.txt
 
-# 2. 编辑填入密钥（占位项见模板内【占位·部署前替换】标记）
-#    SSH_PUBLIC_KEY      ← ssh-keygen 生成（deploy 通道与日常登录，支持多行多 key）
-#    TAILSCALE_AUTH_KEY  ← Tailscale 管理后台一次性 key
-#    CLOUDFLARED_TOKEN   ← Cloudflare Zero Trust 隧道 token
+# 2. 创建 secrets/secrets.yaml 并用 age 公钥加密（内容示例见
+#    modules/security/sops.nix 的注释）：
+#      ssh-public-key: |
+#        ssh-ed25519 AAAA... deploy-key
+#      tailscale-auth-key: tskey-auth-xxxxxxxxxxxxxxxx
+#      cloudflared-token: eyJhIjoi...
+cd secrets && sops -e secrets.yaml  # 或 sops edit secrets.yaml 交互编辑
 
-# 3. 部署（scp 到 VM 注入，结束后清理）
-alpine-router-deploy
+# 3. 在 modules/security/sops.nix 中取消对应 secrets 声明的注释
+
+# 4. 重建生效
+sudo nixos-rebuild switch --flake .#default
+sudo systemctl restart router-vm-deploy    # 立即补注入（或重启 VM 自动触发）
+```
+
+### Tailscale 登录（手动）
+
+authkey 经 config.json 的 `file:` 机制被 tailscaled 读取，登录由操作者手动
+触发（每次 VM 重启 = 新节点身份，hostname 固定，管理台可辨）：
+
+```bash
+ssh root@192.168.10.1 'tailscale up'
 ```
 
 ### 验证
 
-**VM 内部**（`alpine-router-shell`）：
+**VM 内部**（`router-vm-shell`）：
 
 ```bash
-rc-status                  # dnsmasq/chronyd/sshd/nftables/tailscale 应已启动
+rc-status                  # dnsmasq/chronyd/sshd/nftables 应已启动
 ip -brief addr             # eth0=DHCP(WAN)、eth1=192.168.10.1
 nft list ruleset | head    # 规则应包含 eth0/eth1 和 192.168.10.0/24
+cat /root/.ssh/authorized_keys   # deploy 注入的 SSH 公钥
 ```
 
 **客户端验证**（笔记本从静态 IP 改回 DHCP，仍接 eno2）：
@@ -273,7 +290,7 @@ ping -c 3 192.168.10.2      # 内网到 NAS 连通
 ## 7. Cockpit 与收尾
 
 1. 浏览器访问 **http://192.168.10.2:9090**，用 `nas` + 第 4 步设置的系统密码登录
-   （VM 管理不在 Cockpit——microvm VM 由 systemd 声明式管理：`systemctl status microvm@alpine-router`）
+   （VM 管理不在 Cockpit——router VM 由 systemd 声明式管理：`systemctl status router-vm`）
 
 
 ## 8. 验收清单
@@ -307,7 +324,7 @@ ping -c 3 192.168.10.2      # 内网到 NAS 连通
 |---|---|
 | 重启后数据卷未挂载 | `btrfs device scan && mount /srv/data`；确认 filesystem.nix 卷标与 `mkfs.btrfs -L` 一致 |
 | flake 报 not tracked by Git | `git add -N -f hardware-configuration.nix` |
-| VM 无法启动 | `journalctl -u microvm@alpine-router -b`（串口输出）、`systemctl status alpine-router-disk`（状态盘）、`microvm -r alpine-router`（前台串口调试） |
+| VM 无法启动 | `journalctl -u router-vm -b`、`router-vm-console`（串口输出）、`systemctl status router-vm-deploy`（密钥注入） |
 | DHCP 客户端拿不到地址 | VM 内检查 `rc-service dnsmasq status`、`cat /etc/dnsmasq.d/10-dhcp-eth1.conf` |
 | 外网不通但 VM 正常 | VM 内 `nft list ruleset` 检查 NAT 规则、`ip route` 检查默认路由 |
 | Cockpit 登录失败 | 确认 nas 系统密码已设置并 `nixos-rebuild switch` 过 |

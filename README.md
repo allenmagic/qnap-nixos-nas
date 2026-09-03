@@ -49,24 +49,28 @@
 │   ├── README.md                      # sops-nix 使用指南
 │   └── secrets.yaml                   # 加密的密钥文件（需手动创建）
 
-## Alpine Router VM 架构
+## Router VM 架构
 
-VM 的生命周期由 [microvm-router-image](https://github.com/allenmagic/microvm-router-image)
+VM 的生命周期由 [router-image](https://github.com/allenmagic/router-image)
 仓库全权管理：
 
 | 环节 | 位置 |
 |---|---|
-| 镜像生产（rootfs + virt 三件套 + 配置烙入） | microvm-router-image CI → release asset |
-| 消费端声明（microvm 模块：fetchurl、CH 参数、disk-prep、tap 挂桥） | `microvm-router-image` 的 `nixosModules.router`（本仓库 flake input 引用） |
-| 密钥注入（deploy） | microvm-router-image 模块内置（`alpine-router-deploy`/`alpine-router-shell` 命令 + 宿主 env 文件） |
+| 内核 + 镜像生产（自建内核 + rootfs + 配置烙入） | router-image CI → release asset（两件套） |
+| 消费端声明（fetchurl、cloud-hypervisor systemd 单元、tap 挂桥、deploy） | `router-image` 的 `nixosModules.router`（本仓库 flake input 引用） |
+| 密钥注入 | 宿主 sops-nix（secrets.yaml）→ `router-vm-deploy` 每次 VM 启动后自动注入 |
 
 ```nix
-# 完整配置参考（模块已 import，见 modules/virtualization/default.nix）
-microvm.router = {
+# 完整配置参考（模块已 import 并启用，见 modules/virtualization/default.nix）
+services.router-vm = {
   # ── 总开关 ──
   enable = true;
-  #   启用 Alpine Router MicroVM。enable 后需重启宿主（isolcpus 内核参数
-  #   生效需要）；宿主桥 br-wan/br-lan 须已由 modules/network/bridges.nix 创建。
+  #   启用 Router VM。enable 后需重启宿主（isolcpus 内核参数生效需要）；
+  #   宿主桥 br-wan/br-lan 须已由 modules/network/bridges.nix 创建。
+
+  # ── 发行版 ──
+  os = "alpine";
+  #   rootfs 发行版：alpine（默认）| gentoo（均为 musl+OpenRC）。
 
   # ── CPU ──
   cpu = 0;
@@ -82,28 +86,25 @@ microvm.router = {
   #   guest 内存上限（MB）。
   initialBalloonMem = 256;
   #   初始 balloon 大小（MB，CH 要求 128M 对齐）：guest 实际可用 =
-  #   mem - balloon；宿主 OOM 时自动放气归还（deflateOnOOM）。
+  #   mem - balloon；宿主 OOM 时自动放气归还（deflate_on_oom）。
   #   默认 512 / 256。
 
   # ── 网络桥（须与 modules/network/bridges.nix 一致，一般不用改） ──
   wanBridge = "br-wan";
-  #   WAN 侧宿主桥：VM 启动时 microvm 创建 tap "router-wan"，
+  #   WAN 侧宿主桥：VM 的 preStart 创建 tap "router-wan"，
   #   networkd 自动将其加入此桥。
   lanBridge = "br-lan";
   #   LAN 侧宿主桥（tap "router-lan"）。
-
-  # ── 镜像资产（本地调试覆盖，正常无需设置） ──
-  # kernelFile  = /path/to/vmlinuz-virt;
-  # initrd      = /path/to/initrd;
-  # rootfsImage = /path/to/alpine-router-rootfs.qcow2;
-  #   默认从 microvm-router-image release fetchurl（tag+sha256 模块内锁定）。
-  #   CI 不可用需本地构建镜像时在此覆盖（见 microvm-router-image README）。
+  vmIp = "192.168.10.1";
+  #   VM LAN 口 IP（deploy 通道的 ssh 目标；与 bridges.nix 的网关指向一致）。
 };
 ```
 
 **升级镜像**：CI 出 release 自动同步 flake 模块的 tag+sha256 →
-`nix flake update` → `nixos-rebuild` → VM 自动重启（镜像路径含内容哈希）。
-**改密钥**：编辑 `/etc/libvirt/alpine-router.env` → `alpine-router-deploy`。
+`nix flake update` → `nixos-rebuild` → VM 自动重启（rootfs 只读副本路径含
+内容哈希）→ 密钥自动重新注入（guest 无状态，重启即清）。
+**改密钥**：编辑 `secrets/secrets.yaml` → `nixos-rebuild` →
+`systemctl restart router-vm-deploy`（或重启 VM 自动触发）。
 
 ## 快速开始
 
@@ -181,12 +182,12 @@ mkpasswd -m sha-512
 sudo nixos-rebuild switch --flake .#default
 ```
 
-### 5. 启用 Alpine Router MicroVM
+### 5. 启用 Router VM
 
-VM 全声明式（镜像与模块在 microvm-router-image 仓库），启用方式见上文
-「Alpine Router VM 架构」：`microvm.router.enable = true` →
-`nixos-rebuild switch` → 重启宿主（isolcpus 生效）→ 填 env 密钥 →
-`alpine-router-deploy`。详细分步见 [INSTALL.md](INSTALL.md)。
+VM 全声明式（镜像与模块在 router-image 仓库），已在
+`modules/virtualization/default.nix` 中启用 → `nixos-rebuild switch` →
+重启宿主（isolcpus 生效）→ 配置 sops 密钥（secrets.yaml，见 INSTALL.md
+第 6 步）。详细分步见 [INSTALL.md](INSTALL.md)。
 
 
 ## 日常使用
@@ -204,19 +205,21 @@ sudo nixos-rebuild switch --flake .#default
 sudo nixos-rebuild switch --rollback
 ```
 
-### Alpine Router 配置更新
+### Router VM 配置更新
 
 ```bash
-# 改配置：microvm-router-image 仓库（base/ 或 network.env）→ 触发 CI →
-#         NAS 上 nix flake update + rebuild（VM 自动重启，磁盘路径含内容哈希）
+# 改配置：router-image 仓库（base/ 或 network.env）→ 触发 CI →
+#         NAS 上 nix flake update + rebuild（VM 自动重启，rootfs 副本路径
+#         含内容哈希；密钥由 router-vm-deploy 自动重新注入）
 nix flake update
 sudo nixos-rebuild switch --flake .#default
 
-# 改密钥：编辑 /etc/libvirt/alpine-router.env 后
-alpine-router-deploy
+# 改密钥：编辑 secrets/secrets.yaml → rebuild 后手动补注入
+sudo nixos-rebuild switch --flake .#default
+sudo systemctl restart router-vm-deploy
 
 # 或手动 SSH 进入 VM
-alpine-router-shell
+router-vm-shell
 ```
 
 ### 服务管理
@@ -331,14 +334,14 @@ ip link show br-lan
 ping 192.168.10.1
 
 # 进入 VM 检查
-alpine-router-shell
+router-vm-shell
 ```
 
 ## 设计决策
 
 - **Alpine VM 路由而非 NixOS 原生路由**：复用成熟的 Alpine 路由配置体系；故障隔离（路由问题不影响 NAS 存储服务）；内存占用小（512MB）；网络配置可独立备份与恢复
 - **镜像烙入 + 密钥注入分离**：全部配置在 CI 构建时烙进镜像（出厂即正确），deploy 只注入密钥——配置更新走 CI 单仓库闭环，密钥更新走宿主本地秒级通道
-- **模块化**：每个功能独立一个模块文件（`modules/`），VM 实现集中在 microvm-router-image 仓库
+- **模块化**：每个功能独立一个模块文件（`modules/`），VM 实现集中在 router-image 仓库
 
 ## 参考文档
 

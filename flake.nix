@@ -14,16 +14,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # MicroVM（Alpine 路由 VM 的替代方案，POC）
-    microvm = {
-      url = "github:astro/microvm.nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    # 路由 VM（microvm-router-image）：镜像生产 + 消费端模块（microvm.router
-    # 选项定义于此，镜像 release 的 tag+sha256 与该仓库 CI 同源，升级只 flake update）
-    microvm-router-image = {
-      url = "github:allenmagic/microvm-router-image";
+    # 路由 VM（router-image）：镜像生产 + 消费端模块（services.router-vm
+    # 选项定义于此，cloud-hypervisor 直管不依赖 microvm.nix；镜像 release
+    # 的 tag+sha256 与该仓库 CI 同源，升级只 flake update）
+    router-image = {
+      url = "github:allenmagic/router-image";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -35,7 +30,7 @@
 
   };
 
-  outputs = { self, nixpkgs, qnap8528, sops-nix, microvm, microvm-router-image, ... }@inputs: {
+  outputs = { self, nixpkgs, qnap8528, sops-nix, router-image, ... }@inputs: {
     nixosConfigurations.default = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       specialArgs = {
@@ -47,9 +42,6 @@
 
         # Import sops-nix
         sops-nix.nixosModules.sops
-
-        # Import microvm host 模块（定义 microvm.vms；客户机模块 microvm.nixosModules.microvm 用不到）
-        microvm.nixosModules.host
 
         # Import main configuration
         ./configuration.nix

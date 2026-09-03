@@ -42,6 +42,30 @@
       #   owner = "root";
       #   mode = "0400";
       # };
+
+      # ── 路由 VM 密钥（services.router-vm 的 deploy 通道）──────────
+      # 文件名必须与 router-image 模块的 secretsDir 约定一致
+      # （<secretsDir>/ssh-public-key 等，默认 /run/secrets）。
+      # secrets.yaml 内容示例：
+      #   ssh-public-key: |
+      #     ssh-ed25519 AAAA... deploy-key
+      #   tailscale-auth-key: tskey-auth-xxxxxxxxxxxxxxxx
+      #   cloudflared-token: eyJhIjoi...
+      # 注入语义：router-vm-deploy 在每次 VM 启动后自动 scp 进 guest
+      # /run（guest 无状态，重启即清、重新注入）；tailscale 登录为手动
+      # 触发：ssh root@192.168.10.1 'tailscale up'
+      # ssh-public-key = {
+      #   owner = "root";
+      #   mode = "0400";
+      # };
+      # tailscale-auth-key = {
+      #   owner = "root";
+      #   mode = "0400";
+      # };
+      # cloudflared-token = {
+      #   owner = "root";
+      #   mode = "0400";
+      # };
     };
   };
 }
