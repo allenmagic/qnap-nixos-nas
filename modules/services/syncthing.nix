@@ -15,14 +15,16 @@
     # Web UI 配置
     guiAddress = "192.168.10.2:8384";
 
+    # GUI 密码来自 sops（syncthing-password，明文，syncthing 启动时自己哈希）。
+    # 配合 settings.gui.user 完成认证，避免 8384 对内网裸奔。
+    guiPasswordFile = config.sops.secrets.syncthing-password.path;
+
     # 配置
     settings = {
       gui = {
         user = "nas";
-        # ⚠️ 未设置密码时 8384 对 br-lan 完全开放，任何内网设备都可控制同步/删除文件。
-        # 建议任选其一：
-        #   1. password = "..."        （明文写入 nix store，首次启动后被哈希）
-        #   2. services.syncthing.guiPasswordFile = "/run/secrets/..."  （配合 sops-nix，更安全）
+        # 密码已由 services.syncthing.guiPasswordFile（sops syncthing-password）提供，
+        # 不再用明文 password = "..."（那会写进 nix store）。
       };
 
       options = {

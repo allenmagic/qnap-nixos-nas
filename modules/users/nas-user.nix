@@ -22,11 +22,11 @@
     # （密码仅内网与 Tailscale 网段放行，见 modules/security/ssh.nix 的 Match；
     #   其他来源只认密钥）。
     #
-    # ⚠️ 本仓库是公开的：hash 可被离线爆破，密码必须足够强（推荐 4 个以上
-    # 随机单词或 16+ 位随机字符）且不要与其他账号复用。改密码时重新生成 hash
-    # 替换即可；注意旧 hash 会永久留在 git 历史里，背后的密码务必终身不复用。
-    # 生成：mkpasswd -m sha-512（或 openssl passwd -6）
-    hashedPassword = "$6$0sMQSWRntUi.eVpe$BDlpZGVvPFbBgNKTV0p4MN178FbvDJE599yhSaaTYFcYYJsxiW.AIwXG8QYLCAHIcB6MOjhrLy.NLDCEH2d0H0";
+    # 密码 hash 不再进本仓库：由 sops-nix 的 nas-password secret 提供
+    # （secrets/secrets.yaml，值 = mkpasswd -m sha-512 / openssl passwd -6 生成的
+    #  $6$... hash）。sops.nix 里 nas-password 已设 neededForUsers=true，保证用户
+    # 激活前解密。改密码：编辑 sops secret 即可，hash 不进 git。
+    hashedPasswordFile = config.sops.secrets.nas-password.path;
   };
 
   # 创建 storage 组
