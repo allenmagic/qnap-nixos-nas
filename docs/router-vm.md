@@ -70,7 +70,7 @@ GitHub Actions（一次点击）
 镜像声明（fetchurl、CH 参数、状态盘、tap 挂桥）迁入镜像仓库，以 **flake 模块**形式发布。NAS 侧启用整个路由器只剩：
 
 ```nix
-imports = [ inputs.microvm-router-image.nixosModules.router ];
+imports = [ inputs.router-image.nixosModules.router ];
 microvm.router = {
   enable = true;
 
