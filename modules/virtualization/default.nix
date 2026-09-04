@@ -21,8 +21,8 @@
 
     cpu = 0;                 # isolcpus 独占核：vcpu0 pin 到此核，宿主不用
     vcpus = 2;               # 1 独占 + 1 动态调度
-    mem = 512;               # guest 内存上限 MB
-    initialBalloonMem = 256; # virtio-balloon，128M 对齐；宿主 OOM 自动放气
+    mem = 256;               # guest 内存上限 MB（全量服务含 tailscale/cloudflared ~160M，256 足够）
+    initialBalloonMem = 0;   # 不启动充气（充气会从 mem 扣可用内存；宿主侧回收未实现）
 
     wanBridge = "br-wan";    # 物理口 eno1（modules/network/bridges.nix）
     lanBridge = "br-lan";    # 物理口 eno2
