@@ -131,7 +131,7 @@ services.router-vm = {
 
 路由器的持久化数据其实只有「密钥与登录凭据」一类纯文本：SSH 公钥、Tailscale authkey、Cloudflared token。它们由宿主 sops-nix 加密进 git、解密到 `/run/secrets`，deploy 服务在 VM 每次启动后 scp 注入 guest 的 `/run`。重启后密钥消失 → 宿主自动重新注入（PartOf 依赖，操作者无感知）。
 
-**镜像升级不再丢状态**——因为状态根本不在镜像里。代价是 tailscale 节点身份每次重启 churn（hostname 固定，管理台可辨），登录是手动的：`ssh root@192.168.10.1 'tailscale up'`（authkey 经 config.json 的 `file:` 机制被 tailscaled 读取）。
+**镜像升级不再丢状态**——因为状态根本不在镜像里。代价是 tailscale 节点身份每次重启 churn（hostname 固定，管理台可辨）——deploy 注入后自动后台 `tailscale up` 登录（authkey 经 config.json 的 `file:` 机制被读取；key 须 reusable、建议 Ephemeral 避免僵尸节点），审批在 Tailscale admin 侧处理。
 
 ### ro rootfs 的写点处理
 

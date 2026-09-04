@@ -256,13 +256,16 @@ sudo nixos-rebuild switch --flake .#default
 sudo systemctl restart router-vm-deploy    # 立即补注入（或重启 VM 自动触发）
 ```
 
-### Tailscale 登录（手动）
+### Tailscale 登录（自动）
 
-authkey 经 config.json 的 `file:` 机制被 tailscaled 读取，登录由操作者手动
-触发（每次 VM 重启 = 新节点身份，hostname 固定，管理台可辨）：
+注入 authkey 后 deploy 自动启动 tailscaled 并后台 `tailscale up` 登录
+（authkey 经 config.json 的 `file:` 机制被读取）。**key 必须是「可复用
+（Reusable）」类型**——guest 无状态，每次重启都重新登录，一次性 key 第二次
+注入即失效；建议勾选「Ephemeral」，重启产生的旧节点离线后自动移除。设备
+审批（Device approval）在 Tailscale admin 侧处理，或配 ACL auto-approve。
 
 ```bash
-ssh root@192.168.10.1 'tailscale up'
+ssh root@192.168.10.1 'tailscale status'   # 确认已登录（每次 VM 重启 = 新节点身份）
 ```
 
 ### 验证
