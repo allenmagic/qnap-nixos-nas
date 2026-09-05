@@ -55,11 +55,15 @@
         };
       };
 
-      # br-wan 不配置 IP（完全由 Alpine VM 管理）
+      # br-wan：宿主管理 IP（setup 阶段直连上级 192.168.8.1）。
+      # 路由 VM 的 WAN 仍经此桥 DHCP（共享同一物理口）。
       "30-br-wan" = {
         matchConfig.Name = "br-wan";
         networkConfig = {
           DHCP = "no";
+          Address = "192.168.8.10/24";
+          Gateway = "192.168.8.1";
+          DNS = [ "192.168.8.1" ];
           LinkLocalAddressing = "no";
           IPv6AcceptRA = "no";
         };
@@ -70,8 +74,8 @@
         matchConfig.Name = "br-lan";
         networkConfig = {
           Address = "192.168.10.2/24";
-          Gateway = "192.168.10.1";  # 指向 Alpine VM 路由器
-          DNS = [ "192.168.10.1" ];
+          # setup 阶段默认路由走 br-wan（192.168.8.1）；此处仅保留 192.168.10 网段连接路由，
+          # 供访问路由 VM 与未来下游 LAN。接好 LAN 后可改回经路由 VM。
         };
       };
     };

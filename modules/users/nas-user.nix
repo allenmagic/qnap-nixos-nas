@@ -1,9 +1,14 @@
 { config, lib, ... }:
 
 {
+  # "nas" 组：多服务以其为属主组（syncthing Group、samba force-group、music 用户），
+  # 必须显式声明并设为 nas 主组，否则服务启动报 216/GROUP（无此组）。
+  users.groups.nas = { };
+
   # 定义 NAS 服务用户
   users.users.nas = {
     isNormalUser = true;
+    group = "nas";           # 主组 = nas（服务按 nas:nas 属主运行）
     description = "NAS service user";
     home = "/home/nas";
 
