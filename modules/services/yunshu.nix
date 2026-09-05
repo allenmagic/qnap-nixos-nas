@@ -19,7 +19,11 @@
     networkMode = "bridge";
     bridge = "br-lan";                # 接入 Alpine 网络（内网桥）
     lanAddress = "192.168.10.3/24";   # 容器静态 IP
-    upstreamGateway = "192.168.10.1"; # 直连流量出口 = 路由器 VM
-    # floatIp / vrrpId / authPass 使用默认值（与 VM 侧 keepalived.conf 对齐）
+    # gateway mode（yunshu-nix ≥06f64bb 后 upstreamGateway 挪入 gateway 子模块）：
+    # 直连流量出口 = 路由器 VM（192.168.10.1）。floatIp/vrrpId/authPass 用默认
+    # （192.168.10.254/10/alpine-float，与 VM 侧 keepalived.conf 对齐）。
+    gateway = {
+      upstreamGateway = "192.168.10.1";
+    };
   };
 }
