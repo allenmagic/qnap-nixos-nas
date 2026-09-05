@@ -24,8 +24,8 @@
     mem = 256;               # guest 内存上限 MB（全量服务含 tailscale/cloudflared ~160M，256 足够）
     initialBalloonMem = 0;   # 不启动充气（充气会从 mem 扣可用内存；宿主侧回收未实现）
 
-    wanBridge = "br-wan";    # 物理口 eno1（modules/network/bridges.nix）
-    lanBridge = "br-lan";    # 物理口 eno2
+    wanBridge = "br-wan";    # 物理口 enp2s0(WAN)（modules/network/bridges.nix）
+    lanBridge = "br-lan";    # 物理口 enp3s0(LAN)
     vmIp = "192.168.10.1";   # 与 bridges.nix 的网关/DNS 指向一致
   };
 }

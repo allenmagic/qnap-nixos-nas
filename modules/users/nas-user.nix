@@ -15,7 +15,7 @@
 
     # SSH 公钥（替换为你的实际公钥）
     openssh.authorizedKeys.keys = [
-      # "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... your-key-here"
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDxOVLqS8pbklbsF+dM+frmUC4nFD9czNqkx5XsuEVE9 allenmagic@163.com"
     ];
 
     # 系统密码（hash）用途：Cockpit Web 登录（PAM）、sudo、SSH 密码登录

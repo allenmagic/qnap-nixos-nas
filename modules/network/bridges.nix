@@ -32,9 +32,9 @@
 
     # 网络配置
     networks = {
-      # 物理网口 eno1 绑定到 br-wan
-      "20-eno1-wan" = {
-        matchConfig.Name = "eno1";
+      # 物理网口 enp2s0 绑定到 br-wan
+      "20-enp2s0-wan" = {
+        matchConfig.Name = "enp2s0";
         networkConfig = {
           Bridge = "br-wan";
           # 宿主机不在 WAN 口配置 IP（由 Alpine VM 管理）
@@ -44,9 +44,9 @@
         };
       };
 
-      # 物理网口 eno2 绑定到 br-lan
-      "20-eno2-lan" = {
-        matchConfig.Name = "eno2";
+      # 物理网口 enp3s0 绑定到 br-lan
+      "20-enp3s0-lan" = {
+        matchConfig.Name = "enp3s0";
         networkConfig = {
           Bridge = "br-lan";
           DHCP = "no";
