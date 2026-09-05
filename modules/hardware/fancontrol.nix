@@ -18,8 +18,11 @@
     enable = true;
     config = ''
       INTERVAL=5
-      DEVPATH=hwmon1=/sys/devices/platform/coretemp.0/hwmon
-      DEVPATH=hwmon2=/sys/devices/platform/qnap8528/hwmon
+      # DEVPATH 值须匹配 fancontrol 的 DevicePath()（readlink -f hwmonN/device
+      # 去 /sys/ 前缀 → devices/platform/<name>），用 /sys/.../hwmon 会报
+      # "Device path has changed"
+      DEVPATH=hwmon1=devices/platform/coretemp.0
+      DEVPATH=hwmon2=devices/platform/qnap8528
       DEVNAME=hwmon1=coretemp
       DEVNAME=hwmon2=qnap8528
       FCTEMPS=hwmon2/pwm1=hwmon1/temp1_input
