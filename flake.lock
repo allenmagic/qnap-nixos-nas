@@ -66,11 +66,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1788583511,
-        "narHash": "sha256-z+maveF1YTXDDuzRIB/tq0rVzyKq+zvAAWwqR+B3vgc=",
+        "lastModified": 1788532595,
+        "narHash": "sha256-Htyapk+w+jwe+HWdYOPceUqjC3YCu15B/lgaN00Hvqc=",
         "owner": "allenmagic",
         "repo": "router-image",
-        "rev": "6e205af0b80c41e60c1ee87d04f3145aa0f0ab62",
+        "rev": "3ad61316fd96389de42700f51ee919fa37ad6c78",
         "type": "github"
       },
       "original": {
@@ -106,11 +106,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1787893538,
-        "narHash": "sha256-3XWKCN9e9yRMdn/3QD2lyGaBuc8NoDIIPig8ZW0LOq4=",
+        "lastModified": 1788633250,
+        "narHash": "sha256-cjwIBMhOpYHgdUBzVKihSRvKn3rMLZeSkORRDoEZp7I=",
         "owner": "allenmagic",
         "repo": "yunshu-nix",
-        "rev": "6693d36cff74b2e574cf9beb5cc927347205862e",
+        "rev": "06f64bb1f4d802a1a07e0a4ef72a427e3ba6d0c4",
         "type": "github"
       },
       "original": {
