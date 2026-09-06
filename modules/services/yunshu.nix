@@ -17,5 +17,6 @@
     networkMode = "bridge";
     bridge = "br-lan";                # 接入内网桥
     lanAddress = "192.168.10.3/24";   # 容器静态 IP（代理监听于此）
+    upstreamGateway = "192.168.10.1"; # 容器自身 DNS 上游（路由 VM dnsmasq，不依赖隧道）
   };
 }
