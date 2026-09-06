@@ -6,14 +6,14 @@
 #
 # 网络接入：veth 挂 br-lan，静态 192.168.10.3（避开 .1 VM / .2 宿主）。
 # 不再持浮动网关 .254（keepalived 关闭，.254 由路由 VM 兜底持有）。
-{ inputs, ... }:
+{ inputs, lib, ... }:
 
 {
   imports = [ inputs.yunshu-router.nixosModules.container ];
 
   yunshu.container = {
     name = "yunshu-router";
-    mode = "private_proxy";
+    mode = lib.mkForce "private_proxy";
     networkMode = "bridge";
     bridge = "br-lan";                # 接入内网桥
     lanAddress = "192.168.10.3/24";   # 容器静态 IP（代理监听于此）
