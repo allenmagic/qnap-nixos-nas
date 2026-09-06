@@ -108,15 +108,15 @@
       "locked": {
         "lastModified": 1788702515,
         "narHash": "sha256-7S5RLZsYoNigJm6BZORrz92V0tlGVmPM4yBg4yt8Bdo=",
-        "ref": "refs/heads/main",
+        "owner": "allenmagic",
+        "repo": "yunshu-nix",
         "rev": "2d69d7519f26480f0da4f84b514cb068ab4497a7",
-        "revCount": 28,
-        "type": "git",
-        "url": "file:///srv/yunshu-nix"
+        "type": "github"
       },
       "original": {
-        "type": "git",
-        "url": "file:///srv/yunshu-nix"
+        "owner": "allenmagic",
+        "repo": "yunshu-nix",
+        "type": "github"
       }
     }
   },

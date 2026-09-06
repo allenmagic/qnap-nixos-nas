@@ -24,7 +24,7 @@
 
     # YunShu 透明网关容器（策略分流 VPN + 透明代理；浮动网关 MASTER 节点）
     yunshu-router = {
-      url = "git+file:///srv/yunshu-nix";
+      url = "github:allenmagic/yunshu-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
