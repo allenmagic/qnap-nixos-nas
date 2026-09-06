@@ -17,7 +17,7 @@
   # ============================================================
   services.router-vm = {
     enable = true;
-    os = "alpine";
+    os = "gentoo";
 
     cpu = 0;                 # isolcpus 独占核：vcpu0 pin 到此核，宿主不用
     vcpus = 2;               # 1 独占 + 1 动态调度
