@@ -1,195 +1,272 @@
-# NixOS × Cloud Hypervisor：把路由器装进一个 512MB 的无状态 VM
+# QNAP TS-564 AIO —— 单机 NixOS 全功能 NAS
 
-> 从「手动 virt-install 装 Alpine」到「一行 enable 声明式拉起路由器」，再到「剥离 microvm.nix、guest 完全无状态」，记录一次 NAS 虚拟化架构的完整演进。
-
-## 缘起：NAS 为什么需要一个路由器 VM
-
-我的 QNAP TS-564（N5095 四核，8G 内存）跑着 NixOS，负责存储（Btrfs RAID1 + Samba + NFS）、媒体（Navidrome）、同步（Syncthing）等一堆服务。而路由功能——DHCP、DNS、NAT、防火墙、Tailscale——我选择放在一个独立的 Alpine Linux VM 里，理由是：
-
-- **故障隔离**：路由挂了不影响存储服务，反过来也是
-- **网络职责单一**：VM 的防火墙规则可以激进配置，不用顾忌宿主服务
-- **独立重启**：折腾网络时不用重启整个 NAS
-
-拓扑是经典的「路由器在中间」：
-
-```
-上游 ── eno1 ── br-wan ── VM eth0 (DHCP)
-                            │ NAT/防火墙
-内网设备 ── eno2 ── br-lan ── VM eth1 (192.168.10.1，DHCP/DNS)
-                            │
-                   NAS 宿主 192.168.10.2（网关指向 VM）
-```
-
-**关键约束**：宿主的网关就是 VM 自己。这意味着 VM 的网络方案必须支持「宿主 ↔ guest 二层互通」——这个约束在后面会淘汰掉一整类方案。
-
-## 第一版：libvirt 手动方案
-
-最初用 `virt-install` 手动创建 VM、进控制台跑 `setup-alpine`、再 scp 配置脚本部署。很快暴露出问题：
-
-1. **不可重现**：VM 是手搓的，换机器要重来一遍
-2. **配置漂移**：配置脚本和 rootfs 里烙的默认配置互相覆盖，谁是对的说不清
-3. **资源浪费**：QEMU 全套设备模拟对一台常驻路由器来说太重
-
-## 第二版：microvm.nix + Alpine 官方 virt 三件套
-
-改用 [microvm.nix](https://github.com/astro/microvm.nix) 做声明式 VM 管理，引导链换成了 Alpine 官方为虚拟机场景裁剪的 **netboot 三件套**（固定版本 + sha256 锁定）：
-
-| 组件 | 来源 | 作用 |
-|---|---|---|
-| `vmlinuz-virt` | Alpine netboot | 精简内核：virtio 内建、8250 串口内建 |
-| `initramfs-virt` | Alpine netboot | 官方 initramfs（需注入 ext4 模块，后述） |
-| `modloop-virt` | Alpine netboot | 与内核精确配套的模块集 |
-
-rootfs 则是从我的 [nanopi-r3s-rootfs](https://github.com/allenmagic/nanopi-r3s-rootfs) 多发行版构建框架中提取的 Alpine 构建链：chroot 装包、烙入配置、打包 tarball。
-
-### 两个值得记录的坑
-
-**initrd 注入 ext4**：netboot 版 initramfs 不含 ext4 模块（它的设计是 `root=` 模式不挂 modloop）。启动时根分区挂载失败——需要在 initramfs 里注入 ext4 依赖链（crc16/mbcache/jbd2/ext4）并 `depmod` 重建模块索引。注意 `modprobe` 读的是 `modules.dep.bin` 二进制索引，手写文本 `modules.dep` 无效。
-
-**uid 0 属主**：镜像装配时如果用普通用户解包 rootfs，tar 里的 root 属主记录会降级为当前用户 uid。后果是镜像里 `/var/empty` 属主错误，sshd 的 chroot 目录校验失败拒绝启动。解法是 fakeroot 包裹装配阶段（CI runner 是 root 则无此问题）。
-
-## 第三版：镜像生产独立成仓库，CI 出单文件
-
-接下来把「镜像装配」从 NAS 的 Nix 构建中剥离，独立成 [router-image](https://github.com/allenmagic/router-image) 仓库：
-
-```
-GitHub Actions（一次点击）
-  ├─ 内核构建（自建，引导链全 builtin）
-  ├─ rootfs 构建（chroot 装包 + 配置烙入，alpine/gentoo 双链）
-  ├─ 装配：模块元数据注入 → ext4 → qcow2 compact
-  ├─ release 上传（vmlinuz-router + <distro>-rootfs.qcow2 + SHA256SUMS）
-  └─ 自动同步 flake 模块的 tag+sha256 并提交推送
-```
-
-**配置全部烙进镜像**——nftables 规则、dnsmasq、sysctl、服务脚本、网络参数，出厂即正确。网络参数用占位符机制：`base/` 里的 `__LAN_IP__` 之类在构建时按 `network.env` 替换，改网段只动这一个文件。
-
-同时 NAS 侧的 deploy 收缩为**纯密钥注入器**：SSH 公钥（deploy 通道与日常登录）、Tailscale authkey、Cloudflared token 注入，密钥永不进 git、不进镜像、不进 release。
-
-## 第四版：消费端模块化 + Cloud Hypervisor（microvm.nix 时代）
-
-镜像声明（fetchurl、CH 参数、状态盘、tap 挂桥）迁入镜像仓库，以 **flake 模块**形式发布。NAS 侧启用整个路由器只剩：
-
-```nix
-imports = [ inputs.router-image.nixosModules.router ];
-microvm.router = {
-  enable = true;
-
-  cpu = 0;                 # isolcpus 独占核：vcpu0 pin 到此核，宿主不用
-  vcpus = 2;               # 1 独占 + 1 动态调度
-  mem = 512;               # guest 内存上限 MB
-  initialBalloonMem = 256; # virtio-balloon，128M 对齐；宿主 OOM 自动放气
-
-  wanBridge = "br-wan";    # tap 自动挂入的宿主桥
-  lanBridge = "br-lan";
-};
-```
-
-后端从 QEMU 换成 **Cloud Hypervisor**——Rust 写的专用 microvm VMM：
-
-- **更轻**：无设备模拟层，空闲内存/CPU 占用显著低于 QEMU
-- **CPU 隔离**：`isolcpus` 把核 0 从宿主调度器剥离 + vCPU0 affinity 硬 pin——路由器独占一核，其余 vCPU 动态调度且不会抢占隔离核
-- **动态内存**：virtio-balloon（128M 粒度），初始 balloon 256M 意味着 guest 只实际占用 256M，宿主内存紧张时自动放气归还
-- **网络**：CH 没有 QEMU 的 bridge 便捷类型，用 tap + systemd-networkd——tap 出现时 networkd 自动挂桥，零手工步骤
-
-### 为 microvm.nix 妥协的复杂度
-
-这套方案跑通后，几个妥协点越来越扎眼：microvm.nix 面向 NixOS-guest 场景，而本仓库 guest 是预构建镜像，重叠很小——`initramfs-empty.cpio` 空占位（五个 runner 无条件传 `--initramfs`）、`guestKernel` 双输出包装、完整的 NixOS 模块求值、flake 双输入。它们全部只是为了「借」microvm 的 host 模块。
-
-## 第五版：剥离 microvm.nix，guest 完全无状态（现状）
-
-2026-09 重构：**不再依赖 microvm.nix**，systemd 单元直接管理 cloud-hypervisor；同时把持久化从「可写 rootfs 副本」改为「guest 完全无状态 + 宿主 sops-nix」。
-
-```nix
-imports = [ inputs.router-image.nixosModules.router ];
-services.router-vm = {
-  enable = true;
-  os = "alpine";
-
-  cpu = 0;                 # isolcpus 独占核：vcpu0 pin 到此核，宿主不用
-  vcpus = 2;               # 1 独占 + 1 动态调度
-  mem = 512;               # guest 内存上限 MB
-  initialBalloonMem = 256; # virtio-balloon，128M 对齐；宿主 OOM 自动放气
-
-  wanBridge = "br-wan";    # tap 自动挂入的宿主桥
-  lanBridge = "br-lan";
-  vmIp = "192.168.10.1";   # deploy 通道的 ssh 目标
-};
-```
-
-### 变化一览
-
-| 维度 | 第四版 | 第五版 |
-|---|---|---|
-| VM 管理 | microvm.nix host 模块 | `router-vm.service` 直接 ExecStart cloud-hypervisor（tap 创建/挂桥/balloon/优雅关机自管） |
-| 内核 | Alpine virt 三件套 + 自建双变体 | 唯一自建内核（跟最新 LTS，引导链全 builtin，**无 initramfs**） |
-| rootfs | 可写副本（镜像升级 = 状态清零） | **只读挂载**（`--disk readonly=on` + `ro` cmdline） |
-| 状态 | 状态盘/可写 rootfs | **完全无状态**：可写路径构建期烙成符号链接 → `/run`（tmpfs），重启即清 |
-| 密钥 | 手工 `alpine-router-deploy`（env 文件） | sops-nix 加密进 git，`router-vm-deploy.service` **每次 VM 启动后自动注入** |
-| 优雅关机 | microvm 管 | `ExecStop = ch-remote shutdown-vmm`（api-socket，实测秒级退出） |
-
-### 为什么可以无状态
-
-路由器的持久化数据其实只有「密钥与登录凭据」一类纯文本：SSH 公钥、Tailscale authkey、Cloudflared token。它们由宿主 sops-nix 加密进 git、解密到 `/run/secrets`，deploy 服务在 VM 每次启动后 scp 注入 guest 的 `/run`。重启后密钥消失 → 宿主自动重新注入（PartOf 依赖，操作者无感知）。
-
-**镜像升级不再丢状态**——因为状态根本不在镜像里。代价是 tailscale 节点身份每次重启 churn（hostname 固定，管理台可辨）——deploy 注入后自动后台 `tailscale up` 登录（authkey 经 config.json 的 `file:` 机制被读取；key 须 reusable、建议 Ephemeral 避免僵尸节点），审批在 Tailscale admin 侧处理。
-
-### ro rootfs 的写点处理
-
-运行期无法在 ro 根上创建符号链接，全部可写路径在**构建期烙入**：
-
-- `/var/lib/tailscale`、`/etc/cloudflared`、`/var/log`、`/root/.ssh` … → `/run/...`
-- `/etc/mtab` → `/proc/mounts`；`/etc/resolv.conf` → `/run/resolv.conf`（udhcpc 直写）
-- sshd host key 由 `sshd-keys` 服务生成在 `/run/ssh/`（每次启动更换，deploy 通道用 root/root 密码 + StrictHostKeyChecking=no）
-
-### 串口与排障
-
-`--serial file=/run/router-vm/console.log`——网络故障时宿主侧 `router-vm-console` 查看，getty 仍在 guest 的 ttyS0 上。
-
-## 更新与回滚：自愈链
-
-```
-改配置 → CI 出 release（自动同步 sha256）
-       → NAS: nix flake update → rebuild
-       → VM 自动重启（rootfs 只读副本路径含内容哈希，镜像变 = ExecStart 变 = 必然重启）
-       → router-vm-deploy 自动重新注入密钥
-```
-
-三个保护层次：
-
-1. **无关 rebuild 零断网**：systemd 只重启定义变化的单元，NAS 其它服务不受影响
-2. **失败自愈**：镜像 sha256 在构建期校验（坏镜像进不了 store）；回滚是纯本地操作，旧 generation 指向旧镜像副本（保留不删），`nixos-rebuild switch --rollback` 一步恢复网络
-3. **物理兜底**：HDMI 控制台（kmscon + 中文字体）在完全断网时本地登录修复
-
-## 实测与验证
-
-Arch 上完成全链路实测：
-
-- CH + bzImage 自动识别引导 ✅（affinity 语法踩坑：v53 用 `[0@[3]]` 而非 JSON 形式）
-- deploy 全链路：串口登录 → install.sh 执行 → 密钥注入 → cloudflared 重启生效
-- 出厂镜像 debugfs 审计：占位符零残留、WG 规则零残留、服务脚本路径正确
-
-2026-09 重构后的验证（router-image 仓库 CI + smoke-test）：
-
-- CH 断言（与生产同参数：readonly=on + ro cmdline）对 alpine/gentoo 双发行版全绿，含「无 Read-only file system 报错」断言
-- deploy 端到端：root/root 密码通道 → 注入 → **重启清空 → 自动重新注入** ✅
-- `ch-remote shutdown-vmm` 实测秒级退出 ✅
-- guest 内核版本串：`6.18.48-dange-router-vm`（CONFIG_LOCALVERSION 命名）
-
-## 最终架构一览
-
-| 环节 | 位置 |
-|---|---|
-| 内核 + rootfs 构建 + 装配 | router-image CI → release（两件套资产） |
-| 消费端声明（fetchurl/systemd 单元/tap 挂桥/deploy） | router-image 的 `nixosModules.router` |
-| 密钥管理 | 宿主 sops-nix（secrets.yaml 加密进 git）→ router-vm-deploy 自动注入 |
-| NAS 侧 VM 代码量 | 一个 flake input + 一个 `services.router-vm` 块 + 三个 sops 密钥声明 |
-
-## 写在最后
-
-这次演进的最大收获不是某个技术点，而是**收敛的节奏**：从「手动 VM + 覆盖式部署」到「镜像自包含 + 单一覆盖通道」，再到「单仓库闭环 + 消费端模块化」，最后到「剥离抽象层 + 无状态化」——每一步都让系统更声明式、更可重现、更少手工干预。第五版的特别之处在于：删掉 microvm.nix 之后，复杂度不升反降——systemd 单元就是全部编排，没有中间抽象层可猜。
-
-如果你的 NAS 也想跑一个路由器 VM，这套方案（cloud-hypervisor 直管 + 自建内核 + 无状态 guest）是资源占用和运维成本的平衡点：512MB 内存、一个独占核、一次 CI 点击完成更新，密钥由 sops-nix 管、重启自动恢复，剩下的交给声明式配置。
+> **AIO**（Automate Integration Once & All In One）：一台 QNAP TS-564，跑 NixOS，
+> 用声明式配置同时承担**存储、服务、路由、VPN 代理**四类职责。一次配置、处处可复现，
+> 整机可从 git 仓库 + CI 产物几分钟内重构。
 
 ---
 
-**相关仓库**：[qnap-nixos-nas](https://github.com/allenmagic/qnap-nixos-nas) · [router-image](https://github.com/allenmagic/router-image) · [nanopi-r3s-rootfs](https://github.com/allenmagic/nanopi-r3s-rootfs)
+## 0. 基本架构
+
+硬件是一台 4 核 N5095、8G 内存的双网口 NAS，所有功能都收在**一个 NixOS 宿主**里：
+
+```
+                              QNAP TS-564（NixOS 宿主，192.168.10.2）
+┌────────────────────────────────────────────────────────────────────────────┐
+│  存储层     /srv/data  Btrfs 原生 RAID1（2×3TB，checksum + 每月 scrub）        │
+│             /srv/cache SSD（性能敏感/可重建）  /srv/backup HDD（冷备）          │
+│  服务层     Samba · NFS · Syncthing · Navidrome · Cockpit(9090)              │
+│  虚拟化     router-vm（cloud-hypervisor，gentoo 路由）                          │
+│             yunshu 容器（declarative container，透明网关 VPN）                 │
+└────────────────────────────────────────────────────────────────────────────┘
+        │ br-wan                                    │ br-lan
+        ▼                                           ▼
+   上游 ISP ── eno1 ── br-wan ── router-vm eth0 (WAN DHCP/PPPoE)
+                                        │ NAT · 防火墙 · DHCP · DNS
+   内网设备 ── eno2 ── br-lan ── router-vm eth1 (192.168.10.1)
+                                        │
+             ┌──────────────────────────┼───────────────────────────┐
+             ▼                          ▼                           ▼
+      宿主机 192.168.10.2          yunshu 容器 192.168.10.3      内网设备
+      （网关 → .1）                （VRRP 浮动网关 .254 MASTER）   （DHCP 网关 → .254）
+```
+
+四类职责各归其位，**互相隔离、单一权威源**：
+
+| 职责 | 载体 | 权威源 |
+|---|---|---|
+| 存储 | 宿主 Btrfs 卷 | `filesystem.nix`（按卷标挂载） |
+| 服务 | 宿主 systemd 单元 | `modules/services/*` |
+| 路由（DHCP/DNS/NAT/防火墙/Tailscale） | router-vm（gentoo，无状态） | `router-image` 仓库 `base/` + `network.env` |
+| VPN 策略分流（透明网关/代理） | yunshu 容器（headless） | `yunshu-nix` 仓库 |
+
+关键：**路由和 VPN 都跑在隔离的「盒子」里**（一个 VM、一个容器），但配置和镜像
+全部声明式、可复现、可回滚——这是整套 AIO 的灵魂。
+
+---
+
+## 1. 为什么选这个架构
+
+不是「想用 NixOS 秀技术」，而是几个现实约束叠出来的必然。
+
+### 1.1 资源有限，重型虚拟化跑不动
+
+硬件只有 **N5095（4 核 4 线程）+ 8G 内存**。Proxmox VE（PVE）这类完整虚拟化平台
+自带 Web 管理、集群、存储抽象，空载就要吃掉可观的 CPU 和内存，留给实际服务的余量
+所剩无几。一台以「存储 + 轻服务」为主、偶尔路由的 NAS，不值得为此背负一个虚拟化
+平台的常驻开销。
+
+### 1.2 数据安全有过前车之鉴
+
+之前用**飞牛 NAS（fnOS）**出现过**数据丢失**。对自建 NAS 来说，数据卷的可靠性、
+可校验、可迁移是底线——这要求选一个底层透明、坏了能救、换机不锁死的方案，而不是
+「黑盒」的成品系统。
+
+### 1.3 功能要求杂，尤其是路由器和 VPN 代理
+
+这台机器要同时干：文件共享（Samba/NFS）、同步（Syncthing）、媒体（Navidrome）、
+Web 管理（Cockpit），**以及最关键的两块——路由器（DHCP/DNS/NAT/防火墙/Tailscale）
+和 VPN 策略分流（透明网关/代理）**。成品 NAS 系统（群晖/威联通/fnOS）的路由和代理
+能力要么阉割、要么封闭，无法满足「策略分流 + 透明网关 + 浮动网关高可用」这种自定义
+网络需求。
+
+### 1.4 快速可复现重构
+
+数据盘和系统盘分离之后，系统本身应该像「一次性用品」：**换机、折腾坏了、想重来，
+都能从 git 仓库 + CI 产物在几十分钟内原地重构**，不依赖任何手工记忆和现成磁盘状态。
+这正是 NixOS 声明式 + flake 锁定的强项——所有配置进 git、所有依赖锁版本、所有镜像
+由 CI 产出。
+
+> 一句话：**资源紧 → 不能上 PVE；怕丢数据 → 要底层透明；功能杂 → 要自己掌控路由
+> 和代理；要能重来 → 必须声明式。** 四条加起来，答案就是「裸 NixOS 宿主 + 声明式
+> VM/容器」。
+
+---
+
+## 2. 架构选型思路与变化路径
+
+整套架构不是一步到位，而是在「做减法 + 找对边界」的过程中逐步收敛的。
+
+### 2.1 router-vm：从 microvm.nix 到自建 cloud-hypervisor + alpine/gentoo
+
+路由 VM 经历了五个版本的演进，核心是**一层层剥掉不必要的抽象**：
+
+| 版本 | 形态 | 淘汰原因 |
+|---|---|---|
+| 一版 | libvirt / `virt-install` 手动装 Alpine | 不可重现、配置漂移、QEMU 全套模拟太重 |
+| 二版 | microvm.nix + Alpine 官方 virt 三件套 | 声明式了，但 microvm.nix 面向 NixOS-guest，与「预构建镜像」重叠极小 |
+| 三版 | 镜像生产独立成 `router-image` 仓库，CI 出单文件 | 解决了「镜像怎么来」，但消费端仍绑 microvm |
+| 四版 | 消费端模块化 + 后端换 Cloud Hypervisor | CH 更轻，但 microvm.nix 的空占位（空 initramfs、内核双输出、flake 双输入）越来越扎眼 |
+| 五版（现状） | **剥离 microvm.nix，systemd 直管 CH + guest 完全无状态** | 删掉抽象层后复杂度不升反降 |
+
+第五版的最终形态，几个关键决策：
+
+- **后端选 Cloud Hypervisor（CH）而非 QEMU**：Rust 写的专用 microvm VMM，无设备
+  模拟层，空闲 CPU/内存占用显著低于 QEMU；支持 `isolcpus` 独占核 + vCPU affinity
+  硬 pin（路由独占一核）；virtio-balloon 动态内存。
+- **内核自建、无 initramfs**：引导链全 builtin（virtio/8250 串口/网卡内建），省掉
+  initramfs 和 modloop 的复杂度，CVE 响应就是 LTS bump + CI 重编。
+- **guest 完全无状态**：rootfs 只读挂载（`--disk readonly=on` + `ro`），所有可写路径
+  在构建期烙成指向 `/run`（tmpfs）的符号链接；重启即清空，密钥由宿主 sops-nix 解密
+  后 `router-vm-deploy` 每次启动自动注入。**镜像升级不再丢状态——因为状态根本不在
+  镜像里。**
+- **双发行版链 alpine/gentoo**：共用 `base/` 配置体系（OpenRC + 同一套 nftables/
+  dnsmasq/sysctl），消费端 `os` 选项一键切换，按需选 musl 生态的两种底子。
+
+> 为什么绕了 microvm.nix 这一圈？因为「借一个 host 模块」比「自己写 systemd 单元」
+> 看起来快，但最后发现借来的抽象里 90% 用不上。**当抽象层的重叠小于它的开销时，
+> 拆掉它才是对的。** 这也是整个项目一贯的取舍哲学。
+
+### 2.2 yunshu：抛弃 GUI，headless 化
+
+YunShu 是亿格云的零信任/SASE 客户端，官方交付形态是带 GUI 的桌面应用（`.deb` 包）。
+但在 NAS 这个无头环境里：
+
+- **GUI 是纯负担**：X11/Wayland、依赖树、图形登录流程，全是无头机器用不到的东西；
+- **真正有用的是运行时二进制**：`yunshu-daemon`（隧道 + TUN 分流）、`yunshu-updater`、
+  `libtunnel.so`（隧道核心库）、`yunshu` CLI（登录/连接控制）。
+
+于是把 `.deb` 解包、剥离 GUI，只保留运行时 payload（`dist/yunshu-headless/`），用
+systemd 服务 + 一个飞书 SSO 登录状态页（darkhttpd 8080）替代图形登录流程。登录 token
+持久化在容器 `/var/lib/yunshu`，重启不丢。
+
+**代价**：headless 版缺两个桌面版会自动做的事，需要在 NixOS 侧补齐（这是本次项目踩
+出来的关键）：
+
+1. **`yunshu -s all`（连接 pa/ga）≠ 登录**——登录态持久，但 pa/ga 连接在容器重启后
+   会断，需 `yunshu-connect` 服务循环检测并自动重连；
+2. **fake-IP 路由**——被墙域名由 YunShu DNS 解析成 `198.18.0.0/15` 网段的 fake-IP，
+   必须把该网段路由到 `tun0`，否则分流不生效。
+
+### 2.3 yunshu 的两种接入形式：gateway vs 3proxy
+
+同一个 headless payload，`yunshu.container.mode` 提供两种「把流量送进 YunShu 隧道」
+的形式，对应两种使用场景：
+
+| | `gateway`（透明网关，默认） | `private_proxy`（3proxy 代理） |
+|---|---|---|
+| 客户端 | **零配置**：默认网关/DNS 指向浮动 IP `.254` | 每台设备显式设 `192.168.10.3:7890` |
+| 分流机制 | 三层转发 + fake-IP 路由（被墙域名走 tun0） | 应用层代理，3proxy 出站走隧道 |
+| 高可用 | keepalived VRRP MASTER（.254 浮动） | 无浮动网关 |
+| 适用 | 全家设备透明上网 | 少数设备按需翻墙 |
+
+`gateway` 模式下，容器还承担**浮动网关**职责：内网设备 DHCP 下发的网关是
+`192.168.10.254`，正常由 yunshu 容器持有（VRRP MASTER，策略分流），容器不可用时由
+router-vm 的 keepalived（BACKUP）接管，降级为纯直连 NAT 保连通。这套 VRRP 参数
+（vrid/auth_pass/floatIp）横跨三个仓库同步。
+
+> 简单说：**要「全家无感」就 gateway，要「按需可控」就 3proxy**。两者共用同一套
+> headless 运行时，切换只改一个 `mode` 字段。
+
+---
+
+## 3. 整体方案
+
+### 3.1 存储构建
+
+数据盘与系统盘彻底分离，**数据卷按卷标挂载、不依赖 UUID**：
+
+| 卷 | 设备 | 文件系统 | 用途 | 可靠性 |
+|---|---|---|---|---|
+| `nixos` | 256G SSD | ext4 | 系统 + 配置（可重建） | 单盘，随时可重装 |
+| `boot` | 256G SSD | FAT32 ESP | systemd-boot | 同上 |
+| `data` | 2×3T HDD | **Btrfs 原生 RAID1** | 不可再生数据 | checksum + 每月自动 scrub |
+| `cache` | 1T SSD | ext4 | 性能敏感/可重建 | 可重建 |
+| `backup` | 2T HDD | ext4 | 冷备 | 单盘 |
+
+要点：
+
+- **Btrfs 原生 RAID1（`-m raid1 -d raid1`）不用 mdadm**：多设备成员由内核自动组装，
+  数据带 checksum，配合 `services.btrfs.autoScrub` 每月检测并修复静默损坏。
+- **挂载靠卷标**：`mkfs.btrfs -L data` 之后无需记录任何 UUID，`filesystem.nix` 里
+  `device = "/dev/disk/by-label/data"`，换盘/换机只需重做卷标即可挂上。
+
+### 3.2 服务构建
+
+服务层全是标准 NixOS 模块，集中在 `modules/services/`，每个功能一个文件：
+
+- **Samba / NFS**：文件共享，绑定 `192.168.10.0/24` 内网；
+- **Syncthing**：跨设备同步（GUI 绑定内网地址）；
+- **Navidrome / Feishin**：音乐流媒体；
+- **Cockpit**（9090）：Web 管理入口，`nas` 用户 + 系统密码登录。
+
+所有服务共用 `nas` 用户、跑在 `/srv/*` 路径上，tmpfiles 规则负责建目录。改服务 =
+改一个模块文件 + rebuild，不动其它任何东西。
+
+### 3.3 router-vm 构建
+
+路由 VM 的全部实现都在 **router-image** 仓库，NAS 侧**零 VM 实现代码**，只有一行
+flake input + 一个 `services.router-vm` 块：
+
+```nix
+services.router-vm = {
+  enable = true;
+  os = "gentoo";            # alpine | gentoo（musl + OpenRC 双链）
+  cpu = 0;                  # isolcpus 独占核
+  vcpus = 2;                # 1 独占 + 1 动态
+  mem = 256;
+  wanBridge = "br-wan";
+  lanBridge = "br-lan";
+  vmIp = "192.168.10.1";
+};
+```
+
+**构建链**：`router-image` CI（一次点击）→ 自建内核（全 builtin，无 initramfs）→
+rootfs chroot 装包 + `base/` 配置烙入（`network.env` 占位符替换）→ ext4 → qcow2 →
+release 上传 + 自动同步模块内 tag+sha256。**升级只需 NAS 上 `nix flake update` +
+rebuild**，VM 因 rootfs 副本路径含内容哈希而自动重启。
+
+**密钥走另一条通道**：路由 VM 的 SSH/Tailscale/Cloudflared 密钥由宿主 sops-nix 解密，
+`router-vm-deploy` 每次 VM 启动后注入 guest 的 `/run`，用完即删——**密钥永不进镜像、
+不进 store、不进 git**。
+
+### 3.4 yunshu container 构建
+
+YunShu 跑在 **NixOS declarative container**（systemd-nspawn）里，veth 挂 `br-lan`、
+静态 `192.168.10.3`。容器内 guestModule 复用 headless + dns 模块：
+
+- `enableTun = true` + `CAP_NET_ADMIN`：提供 `/dev/net/tun` 给 YunShu 建隧道；
+- **gateway 模式**：开 `ip_forward`、关 `rp_filter`/ICMP redirect、nftables 放行
+  `eth0 ↔ tun0` 转发 + 直连 SNAT、keepalived VRRP MASTER 持 `.254`；
+- **补 headless 缺口**：`yunshu-connect`（登录后自动 `-s all` 连 pa/ga）+ 
+  `yunshu-routes`（fake-IP `198.18.0.0/15` → tun0，`ip` 用绝对路径绕 systemd PATH）；
+- **DNS**：`gateway` 默认透明接管 53 端口（DNAT 到隧道 DNS `10.251.1.1`），域名级
+  分流和隧道一致。
+
+---
+
+## 4. 这个 AIO 的好处，以及与其它 AIO 方案对比
+
+### 4.1 好处
+
+- **一机多职、资源克制**：4 核 8G 同时跑存储 + 服务 + 路由 VM + VPN 容器，路由独占
+  一核，其余动态调度，没有虚拟化平台的常驻开销。
+- **可复现、可回滚**：所有配置进 git、依赖锁 flake.lock、镜像由 CI 产出；系统更新是
+  纯本地操作，`switch --rollback` 一步回滚（旧 generation/旧镜像副本都保留）。
+- **故障隔离、职责单一**：路由和 VPN 都关在隔离的盒子里，折腾网络不会波及存储服务；
+  路由挂了还能走 router-vm 的 keepalived BACKUP 兜底。
+- **数据底线透明**：Btrfs 原生 RAID1 + 卷标挂载，数据不锁死在任何黑盒系统里，坏了能
+  校验、换机能迁移。
+- **密钥分层**：路由 VM 密钥走 sops-nix → deploy 注入，永不进镜像/store/git；yunshu
+  登录态持久化在容器内。
+
+### 4.2 与其它 AIO/自建方案对比
+
+| 方案 | 优势 | 劣势 | 适合 |
+|---|---|---|---|
+| **本方案（裸 NixOS + 声明式 VM/容器）** | 可复现、可回滚、资源克制、底层透明 | 学习曲线陡（Nix/CH/容器都要懂） | 想完全掌控、能折腾的进阶用户 |
+| Proxmox VE（PVE） | 成熟的 VM/LXC 管理、集群、备份 | **重**：空载开销大，N5095/8G 吃紧 | 多机、要跑完整 VM 群 |
+| 群晖/威联通原厂 | 开箱即用、生态全 | 路由/代理能力阉割封闭、换机锁死 | 只想要成品、不折腾 |
+| fnOS（飞牛 NAS） | 国产、上手快 | 数据安全有过丢失前科、可定制性差 | 轻量尝鲜（数据要另备） |
+| 裸 Docker/OMV 全家桶 | 服务编排灵活 | 路由/VM 弱，配置散落、难整体复现 | 只跑容器服务 |
+
+**一句话总结这套 AIO 的定位**：在「成品 NAS 太封闭、PVE 太重」之间，用 **NixOS 声明式
+这个骨架**，把「一个无状态路由 VM + 一个透明网关容器 + 一组标准服务 + 一块校验过的
+Btrfs 数据卷」串成一个**可复现、可回滚、资源克制**的单机全功能 NAS。
+
+---
+
+**相关仓库**：[qnap-nixos-nas](https://github.com/allenmagic/qnap-nixos-nas) ·
+[router-image](https://github.com/allenmagic/router-image) ·
+[yunshu-nix](https://github.com/allenmagic/yunshu-nix) ·
+[nanopi-r3s-rootfs](https://github.com/allenmagic/nanopi-r3s-rootfs)
