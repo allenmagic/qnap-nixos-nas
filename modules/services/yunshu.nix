@@ -13,7 +13,7 @@
 
   yunshu.container = {
     name = "yunshu-router";
-    mode = lib.mkForce "gateway";
+    mode = lib.mkForce "private_proxy";
     networkMode = "bridge";
     bridge = "br-lan";                # 接入内网桥
     lanAddress = "192.168.10.3/24";   # 容器静态 IP（代理监听于此）
