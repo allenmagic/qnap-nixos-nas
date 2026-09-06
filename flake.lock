@@ -106,17 +106,17 @@
         ]
       },
       "locked": {
-        "lastModified": 1788699315,
-        "narHash": "sha256-nxBD2kO5YOx35CQ3O3Kj7JqM8w9bofCVlibmpIpE/JU=",
-        "owner": "allenmagic",
-        "repo": "yunshu-nix",
-        "rev": "c1694350358bbbdbde1b620681c097a884a3e158",
-        "type": "github"
+        "lastModified": 1788702515,
+        "narHash": "sha256-7S5RLZsYoNigJm6BZORrz92V0tlGVmPM4yBg4yt8Bdo=",
+        "ref": "refs/heads/main",
+        "rev": "2d69d7519f26480f0da4f84b514cb068ab4497a7",
+        "revCount": 28,
+        "type": "git",
+        "url": "file:///srv/yunshu-nix"
       },
       "original": {
-        "owner": "allenmagic",
-        "repo": "yunshu-nix",
-        "type": "github"
+        "type": "git",
+        "url": "file:///srv/yunshu-nix"
       }
     }
   },
