@@ -1,5 +1,18 @@
 { config, pkgs, lib, ... }:
 
+let
+  # feishin-web 前端静态文件 + 预生成 settings.js（逻辑与 nixpkgs
+  # services.feishin 模块相同：window.<KEY> = "<VALUE>"）。
+  # settings.js 优先（buildEnv 后者覆盖包内同名文件）。
+  feishinSettingsJs = pkgs.writeTextDir "settings.js" ''
+    "use strict";
+    window.ANALYTICS_DISABLED = "true";
+  '';
+  feishinWebRoot = pkgs.buildEnv {
+    name = "feishin-web-root";
+    paths = [ pkgs.feishin-web feishinSettingsJs ];
+  };
+in
 {
   # ===== Navidrome 音乐服务端 =====
   services.navidrome = {
@@ -33,27 +46,19 @@
     extraGroups = [ "nas" ];
   };
 
-  # ===== Feishin Web 客户端 =====
-  services.feishin = {
+  # ===== Feishin Web 客户端（darkhttpd 托管静态文件）=====
+  # 2026-09 从 nginx 方案切换：feishin-web 是 HashRouter 单页应用（深链为
+  # /#/ 形式，无需服务端 tryFiles fallback），nginx 的其余职责（vhost/gzip/
+  # no-store 响应头）在内网 HTTP 场景均非必需，darkhttpd 几 KB 即可承载。
+  # 公网入口由 Cloudflare Tunnel 提供（VM 内 cloudflared ingress →
+  # http://192.168.10.2:9180，HTTPS/域名在 Cloudflare 侧终结；用子域名
+  # 而非子路径，避免 hash 路由下 assets 绝对路径在子路径下 404）。
+  # 服务器地址不硬编码：内网用户填 http://192.168.10.2:4533，
+  # 公网用户填 https://<域名>，浏览器里各自填写。
+  services.darkhttpd = {
     enable = true;
-
-    # 主访问地址（作为 nginx server_name 主名）
-    # 如需同时支持域名访问，在 nginx.virtualHost.serverAliases 追加域名
-    domain = "192.168.10.2";
-
-    # 纯内网 HTTP 场景，用 nginx 托管（caddy 的自动 HTTPS 在此无用武之地）
-    nginx.enable = true;
-    nginx.virtualHost = {
-      # 与 Navidrome(4533) 区分，沿用 Feishin 默认端口
-      # addr 必填（listen 子模块的 addr 无默认值），与其余服务一致绑定内网 IP
-      listen = [ { addr = "192.168.10.2"; port = 9180; } ];
-    };
-
-    # 服务器地址不硬编码：内网用户填 http://192.168.10.2:4533，
-    # 走 Cloudflare Tunnel 的公网用户填 https://<域名>，浏览器里各自填写即可。
-    # 若想硬编码并锁定，可加 SERVER_NAME/SERVER_TYPE/SERVER_URL/SERVER_LOCK。
-    settings = {
-      ANALYTICS_DISABLED = "true";
-    };
+    port = 9180;
+    address = "192.168.10.2";
+    rootDir = "${feishinWebRoot}";
   };
 }
