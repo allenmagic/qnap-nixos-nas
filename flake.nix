@@ -1,5 +1,5 @@
 {
-  description = "QNAP TS-564 NAS NixOS configuration with Alpine Router VM";
+  description = "QNAP TS-564 NAS NixOS configuration with Router VM";
 
   inputs = {
     # 使用当前稳定分支
