@@ -7,7 +7,7 @@
 
     # 创建网络桥接设备
     netdevs = {
-      # WAN 桥接（连接到 Alpine VM 的 WAN 侧）
+      # WAN 桥接（连接到 Router VM 的 WAN 侧）
       "10-br-wan" = {
         netdevConfig = {
           Kind = "bridge";
@@ -18,7 +18,7 @@
         };
       };
 
-      # LAN 桥接（连接到 Alpine VM 的 LAN 侧）
+      # LAN 桥接（连接到 Router VM 的 LAN 侧）
       "10-br-lan" = {
         netdevConfig = {
           Kind = "bridge";
