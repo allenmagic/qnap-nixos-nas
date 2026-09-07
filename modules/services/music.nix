@@ -58,7 +58,10 @@ in
   services.darkhttpd = {
     enable = true;
     port = 9180;
-    address = "192.168.10.2";
+    # darkhttpd 1.17 里 --ipv6（由 networking.enableIPv6 触发）与 IPv4 --addr
+    # 冲突（报 malformed --addr argument）。改用 IPv6 通配 ::，dual-stack 下
+    # 同时接受 IPv4（br-wan 无 IP，实际只暴露 br-lan 内网）。
+    address = "::";
     rootDir = "${feishinWebRoot}";
   };
 }
