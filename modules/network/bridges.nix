@@ -55,27 +55,25 @@
         };
       };
 
-      # br-wan：宿主管理 IP（setup 阶段直连上级 192.168.8.1）。
+      # br-wan：正式运行不配 IP（WAN 完全归 router-vm 管理）。
       # 路由 VM 的 WAN 仍经此桥 DHCP（共享同一物理口）。
       "30-br-wan" = {
         matchConfig.Name = "br-wan";
         networkConfig = {
           DHCP = "no";
-          Address = "192.168.8.10/24";
-          Gateway = "192.168.8.1";
-          DNS = [ "192.168.8.1" ];
           LinkLocalAddressing = "no";
           IPv6AcceptRA = "no";
         };
       };
 
-      # br-lan 配置 NAS 自身的内网 IP
+      # br-lan：NAS 内网 IP + 默认网关走浮动网关 .254（yunshu 透明网关 VRRP MASTER，
+      # 容器不可用时 router-vm BACKUP 兜底）。DNS 同样指向 .254，走 yunshu 的 DNS 分流。
       "30-br-lan" = {
         matchConfig.Name = "br-lan";
         networkConfig = {
           Address = "192.168.10.2/24";
-          # setup 阶段默认路由走 br-wan（192.168.8.1）；此处仅保留 192.168.10 网段连接路由，
-          # 供访问路由 VM 与未来下游 LAN。接好 LAN 后可改回经路由 VM。
+          Gateway = "192.168.10.254";
+          DNS = [ "192.168.10.254" ];
         };
       };
     };
