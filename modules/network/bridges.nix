@@ -37,7 +37,7 @@
         matchConfig.Name = "enp2s0";
         networkConfig = {
           Bridge = "br-wan";
-          # 宿主机不在 WAN 口配置 IP（由 Alpine VM 管理）
+          # 宿主机不在 WAN 口配置 IP（由 Router VM 管理）
           DHCP = "no";
           LinkLocalAddressing = "no";
           IPv6AcceptRA = "no";
