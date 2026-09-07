@@ -14,15 +14,13 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # 路由 VM（router-image）：镜像生产 + 消费端模块（services.router-vm
-    # 选项定义于此，cloud-hypervisor 直管不依赖 microvm.nix；镜像 release
-    # 的 tag+sha256 与该仓库 CI 同源，升级只 flake update）
+    # 路由 VM router-image
     router-image = {
       url = "github:allenmagic/router-image";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # YunShu 透明网关容器（策略分流 VPN + 透明代理；浮动网关 MASTER 节点）
+    # YunShu 透明网关容器
     yunshu-router = {
       url = "github:allenmagic/yunshu-nix";
       inputs.nixpkgs.follows = "nixpkgs";
