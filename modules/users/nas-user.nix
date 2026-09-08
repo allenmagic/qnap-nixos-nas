@@ -1,6 +1,19 @@
 { config, lib, ... }:
 
 {
+  # root 密码（hash）由 sops-nix 的 root-password-hash secret 提供
+  # （secrets/secrets.yaml，值 = mkpasswd -m sha-512 / openssl passwd -6 生成的
+  #  $6$... hash）。用途：串口/本地登录兜底——SSH 默认密钥登录，
+  # 密码登录仅内网与 Tailscale 网段（modules/security/ssh.nix 的 Match）。
+  #
+  # ⚠️ 部署顺序（真机有 age 私钥时执行）：
+  #   1. sops -k /var/lib/sops-nix/key.txt set secrets/secrets.yaml root-password-hash '<$6$hash>'
+  #   2. nixos-rebuild switch
+  # 若跳过第 1 步直接部署，/run/secrets/root-password-hash 不存在，
+  # activation 会因 hashedPasswordFile 指向缺失文件而失败。
+  users.users.root.hashedPasswordFile =
+    config.sops.secrets.root-password-hash.path;
+
   # "nas" 组：多服务以其为属主组（syncthing Group、samba force-group、music 用户），
   # 必须显式声明并设为 nas 主组，否则服务启动报 216/GROUP（无此组）。
   users.groups.nas = { };

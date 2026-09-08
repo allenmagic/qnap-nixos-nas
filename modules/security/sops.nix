@@ -25,6 +25,16 @@
         mode = "0400";
       };
 
+      # root 密码 hash（串口/本地登录兜底；SSH 默认密钥登录）。
+      # secrets.yaml 条目待真机添加（见 modules/users/nas-user.nix 的部署顺序）：
+      #   sops -k /var/lib/sops-nix/key.txt set secrets/secrets.yaml \
+      #     root-password-hash '<$6$hash>'
+      root-password-hash = {
+        neededForUsers = true;
+        owner = "root";
+        mode = "0400";
+      };
+
       # Samba 密码
       # samba-password = {
       #   owner = "nas";
