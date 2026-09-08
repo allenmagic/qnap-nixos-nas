@@ -142,7 +142,9 @@ Nix 把「代码即基础设施」推到极致，体现在四处：
 - **guest 完全无状态**：rootfs 只读挂载（`--disk readonly=on` + `ro`），所有可写路径
   在构建期烙成指向 `/run`（tmpfs）的符号链接；重启即清空，密钥由宿主 sops-nix 解密
   后 `router-vm-deploy` 每次启动自动注入。**镜像升级不再丢状态——因为状态根本不在
-  镜像里。**
+  镜像里。** 需要跨重启稳定的身份（SSH host key / authorized_keys / 两个 tailscale
+  实例的节点状态）经可选的 `stateDisk` 落宿主 `/var/lib/router-vm/state.raw`（guest
+  侧 /dev/vdb），VM 重启后身份固定，官方 Tailscale 免重复 approve。
 - **双发行版链 alpine/gentoo**：共用 `base/` 配置体系（OpenRC + 同一套 nftables/
   dnsmasq/sysctl），消费端 `os` 选项一键切换，按需选 musl 生态的两种底子。
 
@@ -238,6 +240,7 @@ services.router-vm = {
   cpu = 0;                  # isolcpus 独占核
   vcpus = 2;                # 1 独占 + 1 动态
   mem = 256;
+  stateDisk = { };          # 持久身份：SSH host key + 双 tailscale 节点（默认 64M）
   wanBridge = "br-wan";
   lanBridge = "br-lan";
   vmIp = "192.168.10.1";
@@ -249,9 +252,11 @@ rootfs chroot 装包 + `base/` 配置烙入（`network.env` 占位符替换）�
 release 上传 + 自动同步模块内 tag+sha256。**升级只需 NAS 上 `nix flake update` +
 rebuild**，VM 因 rootfs 副本路径含内容哈希而自动重启。
 
-**密钥走另一条通道**：路由 VM 的 SSH/Tailscale/Cloudflared 密钥由宿主 sops-nix 解密，
-`router-vm-deploy` 每次 VM 启动后注入 guest 的 `/run`，用完即删——**密钥永不进镜像、
-不进 store、不进 git**。
+**密钥走另一条通道**：路由 VM 的 SSH / Tailscale / Headscale / Cloudflared 密钥由宿主
+sops-nix 解密（`ssh-public-key`/`tailscale-auth-key`/`headscale-auth-key`/
+`cloudflared-token` 四个 secret），`router-vm-deploy` 每次 VM 启动后注入 guest 的
+`/run`，用完即删——**密钥永不进镜像、不进 store、不进 git**。headscale 的 authkey
+是自建控制面（hs.zyx1986.icu）的预授权密钥，首次注入即自动登录。
 
 ### 3.4 yunshu container 构建
 

@@ -60,14 +60,19 @@
       #   ssh-public-key: |
       #     ssh-ed25519 AAAA... deploy-key
       #   tailscale-auth-key: tskey-auth-xxxxxxxxxxxxxxxx
+      #   headscale-auth-key: tskey-auth-xxxxxxxxxxxxxxxx（自建控制面 hs.zyx1986.icu）
       #   cloudflared-token: eyJhIjoi...
       # 注入语义：router-vm-deploy 在每次 VM 启动后自动 scp 进 guest
-      # /run（guest 无状态，重启即清、重新注入）；tailscale 注入后自动登录。
+      # /run（guest 无状态，重启即清、重新注入）；tailscale/headscale 注入后自动登录。
       ssh-public-key = {
         owner = "root";
         mode = "0400";
       };
       tailscale-auth-key = {
+        owner = "root";
+        mode = "0400";
+      };
+      headscale-auth-key = {
         owner = "root";
         mode = "0400";
       };
