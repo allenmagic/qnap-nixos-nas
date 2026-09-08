@@ -66,11 +66,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1788761416,
-        "narHash": "sha256-wLcuXuCjfIGNWfzLNEyFOfS/Ks9abGdIjzKm5lrj8HQ=",
+        "lastModified": 1788860220,
+        "narHash": "sha256-yRWIMYR/Sou2BpY62KKx+WAmvsQgFGHkRywNGq6n6Gg=",
         "owner": "allenmagic",
         "repo": "router-image",
-        "rev": "cc069e42e79b0517334581014b5d6d83620cc0dd",
+        "rev": "e8a083e47ffd5f0951e5f256a1c423619356a7a3",
         "type": "github"
       },
       "original": {
