@@ -18,6 +18,22 @@
     },
     "nixpkgs_2": {
       "locked": {
+        "lastModified": 1788881743,
+        "narHash": "sha256-2V9GZGvPfrNzxFozhI9dcqV+c3QdA8YZrvAAzqEB+dI=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "d6524aaca2ff07876657ae2b323f24be4874944b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs_3": {
+      "locked": {
         "lastModified": 1787101114,
         "narHash": "sha256-gwrPcFf/rDjHPaVflbDZ040ZDmBTRj/7+s8ZmE2SaIM=",
         "owner": "NixOS",
@@ -32,9 +48,62 @@
         "type": "github"
       }
     },
+    "nixpkgs_4": {
+      "locked": {
+        "lastModified": 1787101114,
+        "narHash": "sha256-gwrPcFf/rDjHPaVflbDZ040ZDmBTRj/7+s8ZmE2SaIM=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "b18a4b905f8d028dc4476412e6d6891728695379",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-26.05",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "qnap-kernel": {
+      "inputs": {
+        "nixpkgs": "nixpkgs_2",
+        "qnap8528": "qnap8528"
+      },
+      "locked": {
+        "lastModified": 1788967205,
+        "narHash": "sha256-7YmBAHoGWDwbO61cmJUNb0pZcoHu5V+Mt1O2ongG0hc=",
+        "owner": "allenmagic",
+        "repo": "qnap-kernel",
+        "rev": "77651859b0ef3d63978cc581225fae736ac3e032",
+        "type": "github"
+      },
+      "original": {
+        "owner": "allenmagic",
+        "repo": "qnap-kernel",
+        "type": "github"
+      }
+    },
     "qnap8528": {
       "inputs": {
-        "nixpkgs": "nixpkgs_2"
+        "nixpkgs": "nixpkgs_3"
+      },
+      "locked": {
+        "lastModified": 1787561567,
+        "narHash": "sha256-vaUb3WAif+Z1nHUNa784AyChjrT+CbrEj7sEBmbki1k=",
+        "owner": "allenmagic",
+        "repo": "qnap8528",
+        "rev": "b863b7af9677a1adb578b71950563de9a2c288fa",
+        "type": "github"
+      },
+      "original": {
+        "owner": "allenmagic",
+        "repo": "qnap8528",
+        "type": "github"
+      }
+    },
+    "qnap8528_2": {
+      "inputs": {
+        "nixpkgs": "nixpkgs_4"
       },
       "locked": {
         "lastModified": 1787561567,
@@ -53,7 +122,8 @@
     "root": {
       "inputs": {
         "nixpkgs": "nixpkgs",
-        "qnap8528": "qnap8528",
+        "qnap-kernel": "qnap-kernel",
+        "qnap8528": "qnap8528_2",
         "router-image": "router-image",
         "sops-nix": "sops-nix",
         "yunshu-router": "yunshu-router"

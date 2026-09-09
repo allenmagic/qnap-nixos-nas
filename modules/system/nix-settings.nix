@@ -7,9 +7,18 @@
       experimental-features = [ "nix-command" "flakes" ];
 
       # 国内镜像优先（清华 TUNA binary cache），官方源兜底
+      # qnap-kernel：定制内核由 qnap-kernel 仓库的 CI 构建并推送到该 Cachix 缓存，
+      # 本机直接拉取，无需本地编译内核
       substituters = [
         "https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store"
         "https://cache.nixos.org"
+        "https://qnap-kernel.cachix.org"
+      ];
+
+      # 公钥必须显式信任，否则从缓存拉取时报 "lacks a signature by a trusted key"
+      trusted-public-keys = [
+        "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+        "qnap-kernel.cachix.org-1:HwBIYv2RlW2ZHEeuDP+0HRRKABTcjmd8DMAK9vdopL4="
       ];
 
       # 自动优化存储
