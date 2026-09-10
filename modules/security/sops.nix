@@ -80,6 +80,15 @@
         owner = "root";
         mode = "0400";
       };
+
+      # Beszel agent 认证。内容来自 hub UI「Add System」给出的 SSH 公钥，
+      # 为 EnvironmentFile 格式（`KEY=ssh-ed25519 AAAA...`）。
+      # 由 services/beszel.nix 的 agent.environmentFile 引用（经 systemd
+      # EnvironmentFile 读取，因此 0400 也可用）。
+      beszel-agent-key = {
+        owner = "root";
+        mode = "0400";
+      };
     };
   };
 }

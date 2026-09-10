@@ -8,19 +8,17 @@
 # 数据落 /var/lib/beszel-hub（sqlite 历史，systemd 自动管理属主），
 # 镜像升级不影响。
 #
-# ── 当前状态：方案 A 第 1 步 —— 只启用 hub，agent 暂关 ──────────
+# ── 状态：已启用（hub + agent）─────────────────────────────────
 #
-# 为什么分两步：agent 的 KEY 是 **hub 生成的 SSH 公钥**，必须先有 hub
-# 才能拿到，无法预先写入 sops。
-#
-# 后续步骤（拿到公钥后）：
-#   1. 浏览器打开 http://192.168.10.2:8090 → 建管理员账号
-#      → Add System → 复制它显示的 SSH 公钥
+# 配对流程（已走完，供重建/迁移时参考）：agent 的 KEY 是 **hub 生成的
+# SSH 公钥**，必须先有 hub 才能拿到，所以分两步：
+#   1. 先只跑 hub（agentEnable=false）→ 浏览器打开
+#      http://192.168.10.2:8090 → 建管理员 → Add System → 复制公钥
 #   2. 写入 sops（EnvironmentFile 格式，一行）：
-#        sops -k /var/lib/sops-nix/key.txt set secrets/secrets.yaml \
-#          beszel-agent-key 'KEY=ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI...'
-#   3. 在 modules/security/sops.nix 里定义同名 secret（owner=root, mode=0400）
-#   4. 把下面的 agentEnable 改成 true → 重新 rebuild
+#        sops set secrets/secrets.yaml '["beszel-agent-key"]' \
+#          '"KEY=ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI..."'
+#      再在 modules/security/sops.nix 定义同名 secret，最后把
+#      agentEnable 改为 true
 #
 # ⚠️ KEY 不是随机串，是 SSH 公钥（"Public SSH key(s) to use for
 #    authentication. Provided in hub."）——见
@@ -29,7 +27,7 @@
 # ============================================================
 let
   # 方案 A 第 1 步：先只跑 hub；拿到公钥并写入 sops 后改为 true
-  agentEnable = false;
+  agentEnable = true;
 in
 {
   services.beszel = {
