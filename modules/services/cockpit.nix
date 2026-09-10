@@ -18,5 +18,15 @@
     # 监听端口（默认 9090）
     # 防火墙按接口放行：modules/network/default.nix 中 br-lan 已开放 9090
     port = 9090;
+
+    # 允许的 WebSocket Origin。NixOS 模块默认只放行 https://localhost:9090，
+    # 用其它地址访问时 cockpit-ws 会以 "received request from bad Origin" 拒绝
+    # 握手——表现为页面能打开、能登录，但连不上后端。Origins 支持 fnmatch
+    # 通配（见 cockpit.conf.5）。
+    allowed-origins = [
+      "https://192.168.10.2:9090"      # 内网 br-lan
+      "https://allenmagic-nas:9090"    # 主机名
+      "https://100.*:9090"             # Tailscale CGNAT 100.64.0.0/10
+    ];
   };
 }
