@@ -35,7 +35,6 @@
           22000   # Syncthing sync
           4533    # 音乐服务端（gonic，2026-09 取代 Navidrome，端口不变）
           9180    # Feishin Web（音乐前端）
-          9080    # Photofield（相册）
           8090    # Beszel Hub Web UI
           9090    # Cockpit Web UI（cockpit 已剔除，端口保留待恢复）
         ];

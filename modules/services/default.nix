@@ -10,7 +10,6 @@
     #                 （注意两者的数据库互不兼容，切换后会重新扫描）
     ./music.nix
     ./feishin.nix
-    ./photos.nix
     ./beszel.nix
     # ./cockpit.nix   # 剔除（不引用）：配置文件保留在 services/cockpit.nix，
     #                 # 需要恢复时取消注释；注意 network/default.nix 里的
