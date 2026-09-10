@@ -63,6 +63,12 @@ in
       # 实测这几块盘都是 SAT）。
       # /dev/sdf 是 USB 外接盘，桥接芯片不透传 SMART，故不列（列了会报错）。
       environment.SMART_DEVICES = "/dev/sda:sat,/dev/sdb:sat,/dev/sdc:sat,/dev/sdd:sat,/dev/sde:sat";
+
+      # 不展示板载 eMMC（/dev/mmcblk0）。
+      # 它的磨损/寿命数据由 scanEmmcDevices() 读 sysfs 得到，不经过 smartctl，
+      # 所以 SMART_DEVICES 管不到它；但源码里 eMMC 设备同样会经过
+      # filterExcludedDevices()，故 EXCLUDE_SMART 有效（见 agent/smart.go）。
+      environment.EXCLUDE_SMART = "/dev/mmcblk0";
     };
   };
 }
