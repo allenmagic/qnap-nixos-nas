@@ -11,6 +11,7 @@
     btop
     iotop
     tmux
+    fastfetch
 
     # 网络工具
     wget
