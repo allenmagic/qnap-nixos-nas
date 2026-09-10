@@ -35,7 +35,8 @@
           22000   # Syncthing sync
           4533    # Navidrome
           9180    # Feishin Web
-          9090    # Cockpit Web UI
+          8090    # Beszel Hub Web UI
+          9090    # Cockpit Web UI（cockpit 已剔除，端口保留待恢复）
         ];
         allowedUDPPorts = [
           137 138 # Samba (NetBIOS)
