@@ -48,6 +48,12 @@ in
       # mkIf 保证 agent 关闭时不去引用尚未定义的 sops secret，
       # 否则求值会报 attribute 'beszel-agent-key' missing。
       environmentFile = lib.mkIf agentEnable config.sops.secrets.beszel-agent-key.path;
+
+      # 磁盘 SMART 监控（默认 false，不开就看不到磁盘健康）。开启后模块会：
+      #   - 把 smartmontools 加进 agent 的 PATH
+      #   - 把 agent 加入 disk 组，并授予 CAP_SYS_RAWIO / CAP_SYS_ADMIN
+      #   - 代价：NoNewPrivileges / PrivateDevices 被关闭（沙箱放宽，属必要）
+      smartmon.enable = true;
     };
   };
 }
