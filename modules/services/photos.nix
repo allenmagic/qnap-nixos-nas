@@ -29,11 +29,20 @@
     # 默认即 sqlite，无需外部数据库；数据落在 /var/lib/photoview
     database.type = "sqlite";
 
-    # ⚠️ settings 保持模块默认（全部功能启用）——按需求「先都开着看效果」：
-    #   disableFaceRecognition = false  人脸识别
-    #   disableVideoEncoding   = false  视频转码（ffmpeg）
-    #   disableRawProcessing   = false  RAW 处理（darktable）
-    # 这些依赖已打包在 nixpkgs 的 photoview 包里，**关掉也不减磁盘**，
-    # 只影响运行时的 CPU/内存占用。若实测发现 CPU 或内存吃紧，再按需改为 true。
+    settings = {
+      # 关掉 RAW 处理：本库没有 RAW 文件（全 png/jpg/mov）。
+      # ⚠️ 这只关运行时行为，**不会**把 darktable 移出闭包——它对 photoview
+      # 是普通函数参数，nixpkgs 的包无条件把它作为运行时依赖（连同 opencv /
+      # poppler / sane-backends / polkit / ghostscript / colord / graphviz 等）。
+      # 也就是说首次部署仍需下载这些包（本次 dry-build 显示约 203 MiB）。
+      # 若将来想彻底去掉这块体积，可在 flake/module 里 override 掉 darktable。
+      disableRawProcessing = true;
+
+      # 其余功能保持开启（模块默认值）：
+      #   disableFaceRecognition = false  人脸识别（dlib，已打包在闭包里）
+      #   disableVideoEncoding   = false  视频转码（ffmpeg，已打包在闭包里）
+      # 这两个的依赖体积同样无法通过开关削减（编译进包），关掉只省运行时 CPU/内存。
+      # 若实测 CPU 或内存吃紧，再按需改为 true。
+    };
   };
 }
