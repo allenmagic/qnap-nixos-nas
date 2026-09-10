@@ -54,6 +54,15 @@ in
       #   - 把 agent 加入 disk 组，并授予 CAP_SYS_RAWIO / CAP_SYS_ADMIN
       #   - 代价：NoNewPrivileges / PrivateDevices 被关闭（沙箱放宽，属必要）
       smartmon.enable = true;
+
+      # 显式指定 SMART 设备，绕过 agent 的自动探测。
+      # 原因：本机 `smartctl --scan` 把 SATA 盘报成 `-d scsi` 而非 `-d sat`，
+      # beszel 的自动探测因此认不出它们——面板上只剩 mmcblk（eMMC 的磨损
+      # 数据走独立路径，不依赖 smartctl 探测）。见 henrygd/beszel#1345。
+      # 格式：<设备>[:<类型>]，逗号分隔；类型用 sat（`smartctl --scan-open`
+      # 实测这几块盘都是 SAT）。
+      # /dev/sdf 是 USB 外接盘，桥接芯片不透传 SMART，故不列（列了会报错）。
+      environment.SMART_DEVICES = "/dev/sda:sat,/dev/sdb:sat,/dev/sdc:sat,/dev/sdd:sat,/dev/sde:sat";
     };
   };
 }
