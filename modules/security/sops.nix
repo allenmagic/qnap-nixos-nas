@@ -89,6 +89,15 @@
         owner = "root";
         mode = "0400";
       };
+
+      # NAS 本机 git 操作用的 GitHub SSH 私钥（ed25519，账号级）。
+      # 对应公钥需上传到 GitHub 账号 Settings → SSH and GPG keys。
+      # 落点 /run/secrets/github-ssh-key（tmpfs，不落盘）；由
+      # modules/security/ssh.nix 的 programs.ssh.extraConfig 引用。
+      github-ssh-key = {
+        owner = "root";
+        mode = "0400";
+      };
     };
   };
 }
