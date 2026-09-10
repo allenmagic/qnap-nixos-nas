@@ -1,24 +1,63 @@
 { config, pkgs, lib, ... }:
 
+let
+  configFile = pkgs.writeText "photofield-configuration.yaml" ''
+    collections:
+      - name: 照片
+        layout: timeline
+        dirs:
+          - /srv/data/photos
+  '';
+in
 {
-  # 相册服务。选 PhotoPrism 而非 Photoview：后者已停更（2024-06 后无发版），
-  # 且其 libheif 绑定与 nixpkgs 1.23.1 CGO 不兼容，26.05/unstable 都编不出来。
-  services.photoprism = {
-    enable = true;
-    originalsPath = "/srv/data/photos";
-    address = "192.168.10.2";
-    port = 2342;
-    storagePath = "/var/lib/photoprism";
+  # 相册服务。选 photofield：
+  #   - photoprism 的 TensorFlow 是 CGO 编译期链接，其预编译 wheel 要求 AVX，
+  #     而 N5095（Tremont）无 AVX —— 实测连 --version 都 SIGILL，配置绕不过
+  #   - photoview 已停更且 libheif 绑定编译不过
+  #   - immich 需 Postgres + Redis，过重
+  # photofield 是 Go 单二进制 + SQLite，无 AI、无外部数据库。
+  # exiftool / ffmpeg 由包的 wrapper 加进 PATH，运行期工具，不进二进制。
+  systemd.services.photofield = {
+    description = "Photofield photo viewer";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "network.target" ];
 
-    settings = {
-      # 模块以 DynamicUser 运行，写不进 nas:nas 的原图目录（755/664）。
-      # 只读模式下元数据存 SQLite，原图不被触碰。
-      PHOTOPRISM_READONLY = "true";
+    environment = {
+      PHOTOFIELD_ADDRESS = "192.168.10.2:9080";
+      PHOTOFIELD_DATA_DIR = "/var/lib/photofield";
+    };
 
-      # 待观察后再收敛的重项：
-      #   闭包约 5 GiB = libtensorflow(CGO 编译期链接，配置去不掉) + darktable
-      #   + rawtherapee + ffmpeg×3 + imagemagick + vips。本库无 RAW 文件，
-      #   两个 RAW 处理器属纯冗余，需要时可 override 掉。
+    # 配置与缓存都在 StateDirectory；配置是只读的 store 文件，先拷进去
+    preStart = ''
+      cp -f ${configFile} /var/lib/photofield/configuration.yaml
+    '';
+
+    serviceConfig = {
+      ExecStart = "${lib.getExe pkgs.photofield}";
+      DynamicUser = true;
+      StateDirectory = "photofield";
+      WorkingDirectory = "/var/lib/photofield";
+      Restart = "on-failure";
+      RestartSec = 5;
+
+      # 原图只读
+      ReadOnlyPaths = [ "/srv/data/photos" ];
+
+      NoNewPrivileges = true;
+      PrivateDevices = true;
+      PrivateTmp = true;
+      ProtectClock = true;
+      ProtectControlGroups = true;
+      ProtectHome = true;
+      ProtectHostname = true;
+      ProtectKernelLogs = true;
+      ProtectKernelModules = true;
+      ProtectKernelTunables = true;
+      ProtectSystem = "strict";
+      RestrictAddressFamilies = [ "AF_INET" "AF_INET6" "AF_UNIX" ];
+      RestrictNamespaces = true;
+      RestrictRealtime = true;
+      SystemCallArchitectures = "native";
     };
   };
 }
