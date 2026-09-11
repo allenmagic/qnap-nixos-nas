@@ -12,6 +12,7 @@
     ./feishin.nix
     ./beszel.nix
     ./glance.nix
+    ./backup.nix
     ./webdav.nix
     # ./cockpit.nix   # 剔除（不引用）：配置文件保留在 services/cockpit.nix，
     #                 # 需要恢复时取消注释；注意 network/default.nix 里的

@@ -81,11 +81,13 @@ in
         "comment" = "Cache storage (SSD)";
       } // appleCompat;
 
-      # 备份共享
+      # 备份共享（只读）：该盘仅供备份服务写入，内网挂载只看不改，
+      # 避免误删或被勒索软件连带加密。备份本身的属主是 nas:nas，
+      # 所以这里必须显式限制，不能靠文件权限兜底。
       backup = {
         "path" = "/srv/backup";
         "browseable" = "yes";
-        "read only" = "no";
+        "read only" = "yes";
         "valid users" = "nas";
         "create mask" = "0664";
         "directory mask" = "0775";

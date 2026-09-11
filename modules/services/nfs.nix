@@ -16,6 +16,7 @@
     # 三个子目录是 bind mount 点（见下方 fileSystems），必须显式导出才能被伪文件系统呈现。
     # root_squash：客户端 root 映射为 nobody，避免局域网内任何设备以 root 身份读写。
     # 客户端以普通用户（uid 与 nas 一致，通常 1000）挂载即可正常读写。
+    # backup 例外：导出为 ro——该盘只作备份盘，仅本机备份服务写入。
     exports = ''
       # NFSv4 根
       /srv/nfs        192.168.10.0/24(rw,sync,no_subtree_check,root_squash,fsid=0)
@@ -23,7 +24,7 @@
       # 子共享
       /srv/nfs/data   192.168.10.0/24(rw,sync,no_subtree_check,root_squash)
       /srv/nfs/cache  192.168.10.0/24(rw,sync,no_subtree_check,root_squash)
-      /srv/nfs/backup 192.168.10.0/24(rw,sync,no_subtree_check,root_squash)
+      /srv/nfs/backup 192.168.10.0/24(ro,sync,no_subtree_check,root_squash)
     '';
 
     nproc = 8;
