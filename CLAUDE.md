@@ -35,7 +35,7 @@ sops secrets/secrets.yaml                         # 编辑加密密钥（需要 
 
 - 双网口各绑定一个桥：`eno1 → br-wan`、`eno2 → br-lan`（systemd-networkd 管理，`modules/network/bridges.nix`）。
 - **宿主机在 br-wan 上不配置 IP**——WAN（DHCP/NAT/防火墙）完全由 Alpine 路由 VM 负责。宿主机只在 br-lan 上有静态 IP `192.168.10.2/24`，网关指向 VM 的 `192.168.10.1`。
-- 防火墙只在 br-lan 接口开放服务端口（`modules/network/default.nix`），端口列表对应 SSH/Samba/NFS/Syncthing/WebDAV/Navidrome/Cockpit。
+- 防火墙只在 br-lan 接口开放服务端口（`modules/network/default.nix`），端口列表对应 SSH/Samba/NFS/Syncthing/WebDAV/Glance/Navidrome/Cockpit。
 
 ### Alpine 路由 VM
 
@@ -61,7 +61,7 @@ sops secrets/secrets.yaml                         # 编辑加密密钥（需要 
 
 ## ⚠️ 当前状态与坑
 
-1. **内网网段为 `192.168.10.0/24`，且在多个文件硬编码**：`bridges.nix`（宿主机 IP/网关）、`samba.nix`（hosts allow）、`nfs.nix`（exports）、`syncthing.nix`（guiAddress）、`webdav.nix`（绑定地址）、`music.nix`（Navidrome/Feishin 绑定地址）、`microvm.router.vmIp` 选项（router-image 模块，deploy 脚本 ssh 目标）、**router-image 仓库的 `network.env`**（VM 网络参数权威源，含 TS_ADVERTISE_ROUTES 与 LAN_GATEWAY 浮动网关）、**yunshu 容器参数**（`modules/services/yunshu.nix` 的 lanAddress/upstreamGateway/floatIp）。修改网段时必须全局同步这些位置，否则服务绑定错 IP 或防火墙/共享拒绝访问。
+1. **内网网段为 `192.168.10.0/24`，且在多个文件硬编码**：`bridges.nix`（宿主机 IP/网关）、`samba.nix`（hosts allow）、`nfs.nix`（exports）、`syncthing.nix`（guiAddress）、`webdav.nix`（绑定地址）、`glance.nix`（绑定地址）、`music.nix`（Navidrome/Feishin 绑定地址）、`microvm.router.vmIp` 选项（router-image 模块，deploy 脚本 ssh 目标）、**router-image 仓库的 `network.env`**（VM 网络参数权威源，含 TS_ADVERTISE_ROUTES 与 LAN_GATEWAY 浮动网关）、**yunshu 容器参数**（`modules/services/yunshu.nix` 的 lanAddress/upstreamGateway/floatIp）。修改网段时必须全局同步这些位置，否则服务绑定错 IP 或防火墙/共享拒绝访问。
 2. `hardware-configuration.nix` 被 `.gitignore` 忽略（规则 `/hardware-configuration.nix`），但当前已通过 `git add -N -f` 以 intent-to-add 状态暂存——**内容仍是占位模板**（空 kernelModules），不能用于真实安装。安装时用 `nixos-generate-config --root /mnt` 生成真实配置**覆盖**它并保持 intent-to-add 状态；`hardware-configuration.nix.example` 是占位模板。**flake 求值只能看到 git 跟踪的文件**——未暂存时 `nixos-rebuild --flake` 报 "not tracked by Git"。
 3. `secrets/secrets.yaml` 尚不存在。sops 模块引用了它但 `secrets` 集合为空；在 `modules/security/sops.nix` 中取消注释 secret 定义前，须先按 `secrets/README.md` 生成 age 密钥并创建加密文件。
 4. `modules/users/nas-user.nix` 的 SSH 公钥是占位注释——无任何密钥则无法 SSH 登录（密码登录已禁用）。`wheelNeedsPassword = true`。

@@ -1,0 +1,66 @@
+{ config, lib, ... }:
+
+{
+  # Glance 仪表盘（glanceapp/glance）：起始页，bookmarks 汇总本机各 Web 服务入口。
+  # 公网访问经路由 VM 的 cloudflared 隧道回源到 192.168.10.2:8080，
+  # 隧道 ingress 在 Cloudflare Zero Trust 面板配置（见 README）。
+  services.glance = {
+    enable = true;
+
+    settings = {
+      server = {
+        host = "192.168.10.2"; # 只绑 br-lan，不在 br-wan 暴露
+        port = 8080;
+        # 经 cloudflared 回源：按 X-Forwarded-For 认客户端 IP。Glance 自带的
+        # 暴力破解防护（5 次失败封 IP 5 分钟）依赖它，不加则所有请求同源。
+        proxied = true;
+      };
+
+      # 自带认证（公网暴露必需）。两个值都走 sops，由模块的 ExecStartPre
+      # （以 root 跑 jq）替换进 /run/glance/glance.yaml，不进 nix store。
+      # ⚠️ sops 里的值不能带尾换行：secret-key 多 1 字节即长度校验失败，
+      #    password-hash 多 \n 则 bcrypt 比对恒失败。
+      auth = {
+        secret-key = {
+          _secret = config.sops.secrets.glance-secret-key.path;
+        };
+        users.nas.password-hash = {
+          _secret = config.sops.secrets.glance-password-hash.path;
+        };
+      };
+
+      pages = [
+        {
+          name = "Home";
+          columns = [
+            {
+              size = "full";
+              widgets = [
+                {
+                  type = "bookmarks";
+                  groups = [
+                    {
+                      title = "NAS 服务";
+                      links = [
+                        # 内网地址：Glance 自身走公网访问时这些链接点不开，
+                        # 需要时再补一组走 Cloudflare 子域名的「公网」链接。
+                        { title = "Feishin"; url = "http://192.168.10.2:9180"; icon = "si:musicbrainz"; }
+                        { title = "gonic"; url = "http://192.168.10.2:4533"; }
+                        { title = "Syncthing"; url = "http://192.168.10.2:8384"; icon = "si:syncthing"; }
+                        { title = "Beszel"; url = "http://192.168.10.2:8090"; }
+                        { title = "WebDAV"; url = "http://192.168.10.2:4918"; }
+                      ];
+                    }
+                  ];
+                }
+                { type = "clock"; }
+                { type = "weather"; location = "Beijing"; }
+                { type = "server-stats"; servers = [ { type = "local"; name = "NAS"; } ]; }
+              ];
+            }
+          ];
+        }
+      ];
+    };
+  };
+}

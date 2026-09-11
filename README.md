@@ -9,6 +9,7 @@
 - **Alpine Router VM**: 使用独立 VM 处理网络路由、NAT、DHCP、DNS
 - **Web 管理**: Cockpit Web 界面管理虚拟机与系统（插件可扩展）
 - **存储服务**: Samba、NFS、Syncthing、WebDAV、Navidrome
+- **仪表盘**: Glance 起始页，汇总各服务入口，自带登录认证
 - **安全管理**: sops-nix 加密密钥管理、SSH 密钥认证
 - **自动化维护**: 定期垃圾回收、SMART 监控、SSD Trim
 
@@ -42,7 +43,7 @@
 │   ├── hardware/                      # 硬件相关（风扇、传感器）
 │   ├── network/                       # 网络配置（桥接、防火墙）
 │   ├── virtualization/                # Alpine Router MicroVM（flake 模块引用）
-│   ├── services/                      # Samba、NFS、Syncthing、WebDAV、Navidrome、Cockpit
+│   ├── services/                      # Samba、NFS、Syncthing、WebDAV、Glance、Navidrome、Cockpit
 │   ├── security/                      # SSH、sops-nix
 │   └── users/                         # 用户配置
 ├── secrets/
@@ -230,6 +231,7 @@ systemctl status samba
 systemctl status nfs-server
 systemctl status syncthing
 systemctl status webdav
+systemctl status glance
 systemctl status navidrome
 systemctl status cockpit
 
@@ -321,6 +323,40 @@ NAS 上无需证书。`behindProxy = true` 让日志按 `X-Forwarded-For` 记录
   大文件同步仍应走内网或 Tailscale。
 - 强烈建议在同一面板加 **Cloudflare Access** 策略（邮箱 OTP 等），在 WebDAV 认证之外
   再加一道门，避免只靠用户名密码扛公网扫描。
+
+### Glance 仪表盘
+
+`modules/services/glance.nix`（glanceapp/glance）是内网起始页：`bookmarks` widget
+汇总本机各 Web 服务入口（Feishin / gonic / Syncthing / Beszel / WebDAV），另有
+时钟、天气（Beijing）、服务器状态。
+
+内网访问：`http://192.168.10.2:8080`，登录用户 `nas`。
+
+**认证**：Glance 自带登录（不同于 WebDAV 的 Basic 认证），配置在 `settings.auth`：
+- `secret-key`：base64 的 64 随机字节，必须是**正好 64 字节**（`glance secret:make` 的输出）
+- `users.<name>.password-hash`：bcrypt（`glance password:hash '<密码>'`）
+
+两个值都存 sops（`glance-secret-key` / `glance-password-hash`），模块的 ExecStartPre
+以 root 跑 jq 把它们替换进 `/run/glance/glance.yaml`，明文不进 nix store。
+⚠️ **sops 里的值不能带尾换行**——secret-key 多 1 字节即长度校验失败，password-hash
+多一个 `\n` 则 bcrypt 比对恒失败。
+
+改密码：
+
+```bash
+HASH=$(nix run nixpkgs#glance -- password:hash '<新密码>')
+printf '%s' "$HASH" | python3 -c 'import json,sys; sys.stdout.write(json.dumps(sys.stdin.read()))' \
+  | sops set --value-stdin secrets/secrets.yaml '["glance-password-hash"]'
+sudo nixos-rebuild switch --flake .#default && sudo systemctl restart glance
+```
+
+**公网访问**：和 WebDAV 同一套路，Cloudflare Zero Trust 面板加 Public Hostname →
+`HTTP` → `192.168.10.2:8080`。`server.proxied = true` 已开启，Glance 会按
+`X-Forwarded-For` 认客户端 IP——它自带的暴力破解防护（5 次失败封 IP 5 分钟）依赖这一点。
+
+> ⚠️ `bookmarks` 里现在是**内网地址**，从公网打开 Glance 时这些链接点不开。
+> 需要时再加一组走 Cloudflare 子域名的链接（lib 里的 `icon` 走 jsdelivr CDN，
+> 出网不稳时图标会加载不出来，可去掉 icon 或改本地图标）。
 
 ### 添加 SSH 公钥
 

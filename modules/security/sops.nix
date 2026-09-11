@@ -57,6 +57,20 @@
         mode = "0400";
       };
 
+      # Glance 仪表盘认证。两个值由 services/glance.nix 的 settings 以
+      # { _secret = ...; } 引用，模块 ExecStartPre（root 跑 jq）替换进配置：
+      #   glance-secret-key    = base64 的 64 随机字节（`glance secret:make`）
+      #   glance-password-hash = bcrypt（`glance password:hash <密码>`）
+      # ⚠️ 值不能带尾换行（多 1 字节 → secret-key 长度校验失败 / bcrypt 比对失败）。
+      glance-secret-key = {
+        owner = "root";
+        mode = "0400";
+      };
+      glance-password-hash = {
+        owner = "root";
+        mode = "0400";
+      };
+
       # Tailscale 认证密钥
       # tailscale-authkey = {
       #   owner = "root";
