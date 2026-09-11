@@ -1,4 +1,4 @@
-{ config, lib, ... }:
+{ config, lib, pkgs, ... }:
 
 {
   # root 密码（hash）由 sops-nix 的 root-password-hash secret 提供
@@ -68,6 +68,24 @@
     "d /srv/data/templates 0755 nas nas -"
     "d /srv/data/models 0755 nas nas -"
   ];
+
+  # tmpfiles 不修改挂载点自身，上面 d /srv/{data,cache,backup} 的 nas:storage
+  # 对挂载后的根无效（实际是 root:root）→ Samba(force user=nas) 在共享根写不了。
+  # 挂载完成后补一次 chown。
+  systemd.services.srv-mount-owner = {
+    description = "修正 /srv 挂载点属主（tmpfiles 不覆盖挂载点）";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "srv-data.mount" "srv-cache.mount" "srv-backup.mount" ];
+    requires = [ "srv-data.mount" "srv-cache.mount" "srv-backup.mount" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    script = ''
+      ${pkgs.coreutils}/bin/chown nas:storage /srv/data /srv/cache /srv/backup
+      ${pkgs.coreutils}/bin/chmod 0755 /srv/data /srv/cache /srv/backup
+    '';
+  };
 
   # sudo 配置（允许 wheel 组成员无密码执行 sudo）
   security.sudo = {
