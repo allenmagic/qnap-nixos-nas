@@ -39,6 +39,10 @@
           9090    # Cockpit Web UI（cockpit 已剔除，端口保留待恢复）
           4918    # WebDAV（客户端直连内网；公网经路由 VM cloudflared 隧道回源）
           8080    # Glance 仪表盘（同上，公网经 cloudflared 隧道回源）
+          8081    # qBittorrent Web UI（services/downloads.nix）
+          6881    # qBittorrent BT 监听端口（TCP；UDP 见下）
+          6800    # aria2 JSON-RPC（AriaNg 页面从浏览器直连它）
+          6880    # AriaNg 静态页（nginx）
         ];
         allowedUDPPorts = [
           137 138 # Samba (NetBIOS)
@@ -49,6 +53,7 @@
           20048   # NFSv3 mountd
           4000    # NFSv3 statd
           4001    # NFSv3 lockd
+          6881    # qBittorrent BT 监听端口（UDP）
         ];
       };
     };

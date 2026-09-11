@@ -29,6 +29,7 @@
     extraGroups = [
       "wheel"      # sudo 权限
       "storage"    # 存储访问
+      "aria2"      # services/aria2.nix 用独立 aria2 用户跑，加组才能读写它的下载目录
     ];
 
     # SSH 公钥（替换为你的实际公钥）

@@ -122,6 +122,23 @@
         owner = "root";
         mode = "0400";
       };
+
+      # qBittorrent Web UI 密码（明文）。services/downloads.nix 的 ExecStartPre
+      # 在启动前把它算成 PBKDF2 哈希写进 qBittorrent.conf——配置模板本身在
+      # nix store（全员可读），所以密码不能直接进 serverConfig。
+      # owner 必须是 nas：ExecStartPre 以服务用户身份执行，要读得到。
+      qbittorrent-password = {
+        owner = "nas";
+        mode = "0400";
+      };
+
+      # aria2 JSON-RPC 密钥（明文随机串）。由 services.aria2 的 rpcSecretFile
+      # 经 systemd LoadCredential 读取（PID 1 以 root 读，故 owner=root）。
+      # AriaNg 首次打开时填这个值即可。
+      aria2-rpc-secret = {
+        owner = "root";
+        mode = "0400";
+      };
     };
   };
 }
