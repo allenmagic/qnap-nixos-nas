@@ -47,6 +47,16 @@
         mode = "0400";
       };
 
+      # WebDAV 认证密码。内容为 EnvironmentFile 格式（hacdias/webdav 用
+      # {env} 占位读取，配置文件里不含明文）：
+      #   WEBDAV_PASSWORD=<明文密码>
+      # 添加：sops -k /var/lib/sops-nix/key.txt set secrets/secrets.yaml \
+      #         webdav-password 'WEBDAV_PASSWORD=<明文密码>'
+      webdav-password = {
+        owner = "root";   # 由 systemd（PID 1）读取 EnvironmentFile
+        mode = "0400";
+      };
+
       # Tailscale 认证密钥
       # tailscale-authkey = {
       #   owner = "root";

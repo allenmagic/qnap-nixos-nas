@@ -37,6 +37,7 @@
           9180    # Feishin Web（音乐前端）
           8090    # Beszel Hub Web UI
           9090    # Cockpit Web UI（cockpit 已剔除，端口保留待恢复）
+          4918    # WebDAV（客户端直连内网；公网经路由 VM cloudflared 隧道回源）
         ];
         allowedUDPPorts = [
           137 138 # Samba (NetBIOS)

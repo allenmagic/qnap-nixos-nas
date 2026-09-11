@@ -8,7 +8,7 @@
 - **QNAP 硬件支持**: 集成 qnap8528 内核模块，支持风扇控制、LED、温度传感器
 - **Alpine Router VM**: 使用独立 VM 处理网络路由、NAT、DHCP、DNS
 - **Web 管理**: Cockpit Web 界面管理虚拟机与系统（插件可扩展）
-- **存储服务**: Samba、NFS、Syncthing、Navidrome
+- **存储服务**: Samba、NFS、Syncthing、WebDAV、Navidrome
 - **安全管理**: sops-nix 加密密钥管理、SSH 密钥认证
 - **自动化维护**: 定期垃圾回收、SMART 监控、SSD Trim
 
@@ -42,7 +42,7 @@
 │   ├── hardware/                      # 硬件相关（风扇、传感器）
 │   ├── network/                       # 网络配置（桥接、防火墙）
 │   ├── virtualization/                # Alpine Router MicroVM（flake 模块引用）
-│   ├── services/                      # Samba、NFS、Syncthing、Navidrome、Cockpit
+│   ├── services/                      # Samba、NFS、Syncthing、WebDAV、Navidrome、Cockpit
 │   ├── security/                      # SSH、sops-nix
 │   └── users/                         # 用户配置
 ├── secrets/
@@ -229,6 +229,7 @@ router-vm-shell
 systemctl status samba
 systemctl status nfs-server
 systemctl status syncthing
+systemctl status webdav
 systemctl status navidrome
 systemctl status cockpit
 
@@ -286,6 +287,40 @@ settings.newshare = {
   "force group" = "nas";
 };
 ```
+
+### WebDAV 服务
+
+`modules/services/webdav.nix`（hacdias/webdav）把 `/srv/data/webdav` 以 WebDAV
+协议暴露给 iOS「文件」App、Infuse、RaiDrive、rclone 等客户端，认证用户 `nas`。
+
+**首次启用**：密码走 sops（明文，不是系统密码 hash），需先添加密钥再 rebuild：
+
+```bash
+# 在 NAS 上（需 /var/lib/sops-nix/key.txt）
+sops -k /var/lib/sops-nix/key.txt set secrets/secrets.yaml \
+  webdav-password 'WEBDAV_PASSWORD=<足够强的密码>'
+cd /etc/nixos && git pull            # 或本仓库所在路径
+sudo nixos-rebuild switch --flake .#default
+```
+
+内网访问：`http://192.168.10.2:4918`（端口仅对 br-lan 放行）。
+
+**公网访问（Cloudflare Tunnel）**：隧道在路由 VM 内以 token 托管模式运行——
+`/etc/cloudflared/config.yml` 只有 token，**ingress 规则在 Cloudflare 面板配置**，
+不在本仓库：
+
+> Zero Trust → Networks → Tunnels → 对应隧道 → Public Hostnames → Add
+> - Subdomain/Domain：如 `webdav.zyx1986.icu`
+> - Service：`HTTP` → `192.168.10.2:4918`（路由 VM 与 NAS 同桥，可直连）
+
+回源是内网明文 HTTP（仅 br-lan 一跳），公网侧由 Cloudflare 边缘自动 HTTPS，
+NAS 上无需证书。`behindProxy = true` 让日志按 `X-Forwarded-For` 记录真实客户端 IP。
+
+⚠️ 公网暴露注意：
+- **Cloudflare 免费版请求体上限 100MB**，超出的大文件 `PUT` 会失败（Enterprise 500MB）——
+  大文件同步仍应走内网或 Tailscale。
+- 强烈建议在同一面板加 **Cloudflare Access** 策略（邮箱 OTP 等），在 WebDAV 认证之外
+  再加一道门，避免只靠用户名密码扛公网扫描。
 
 ### 添加 SSH 公钥
 
