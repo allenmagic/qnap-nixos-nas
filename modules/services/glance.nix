@@ -36,21 +36,26 @@
             {
               size = "full";
               widgets = [
+                # 用 monitor 而非 bookmarks：一样可点击跳转，但额外显示在线状态，
+                # 正好解决「记不住端口 / 不知道还活着没」。
+                #
+                # alt-status-codes 是实测值，不是猜的：Glance 自身(8080) 与
+                # gonic(4533) 探测返回 303（重定向到登录页），WebDAV(4918) 返回
+                # 401，不列进来会被误判成「挂了」。
                 {
-                  type = "bookmarks";
-                  groups = [
-                    {
-                      title = "NAS 服务";
-                      links = [
-                        # 内网地址：Glance 自身走公网访问时这些链接点不开，
-                        # 需要时再补一组走 Cloudflare 子域名的「公网」链接。
-                        { title = "Feishin"; url = "http://192.168.10.2:9180"; icon = "si:musicbrainz"; }
-                        { title = "gonic"; url = "http://192.168.10.2:4533"; }
-                        { title = "Syncthing"; url = "http://192.168.10.2:8384"; icon = "si:syncthing"; }
-                        { title = "Beszel"; url = "http://192.168.10.2:8090"; }
-                        { title = "WebDAV"; url = "http://192.168.10.2:4918"; }
-                      ];
-                    }
+                  type = "monitor";
+                  title = "NAS 服务";
+                  sites = [
+                    # 内网地址：Glance 自身走公网访问时这些链接点不开，
+                    # 需要时再补一组走 Cloudflare 子域名的「公网」链接。
+                    { title = "Glance"; url = "http://192.168.10.2:8080"; alt-status-codes = [ 302 303 ]; same-tab = true; }
+                    { title = "qBittorrent"; url = "http://192.168.10.2:8081"; icon = "si:qbittorrent"; same-tab = true; }
+                    { title = "AriaNg"; url = "http://192.168.10.2:6880"; same-tab = true; }
+                    { title = "Feishin"; url = "http://192.168.10.2:9180"; icon = "si:musicbrainz"; same-tab = true; }
+                    { title = "gonic"; url = "http://192.168.10.2:4533"; alt-status-codes = [ 302 303 ]; same-tab = true; }
+                    { title = "Syncthing"; url = "http://192.168.10.2:8384"; icon = "si:syncthing"; same-tab = true; }
+                    { title = "Beszel"; url = "http://192.168.10.2:8090"; same-tab = true; }
+                    { title = "WebDAV"; url = "http://192.168.10.2:4918"; alt-status-codes = [ 401 ]; same-tab = true; }
                   ];
                 }
                 { type = "clock"; }
