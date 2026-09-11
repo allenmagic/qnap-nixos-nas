@@ -1,5 +1,17 @@
 { config, lib, ... }:
 
+let
+  # iOS 18+/macOS 客户端的 Apple 扩展兼容层。
+  # 缺这层时 iOS「文件」App 会把共享判定为只读（服务端权限/协议都正常，
+  # Windows 客户端也只读不了），是客户端 bug。
+  # fruit = AAPL 扩展 + AppleDouble，streams_xattr = 把元数据流落到 xattr。
+  appleCompat = {
+    "vfs objects" = "fruit streams_xattr";
+    "fruit:metadata" = "stream";   # 元数据进 xattr，不在共享里生成 ._ 文件
+    "fruit:resource" = "stream";
+    "fruit:nfs_aces" = "no";
+  };
+in
 {
   # Samba 文件共享服务
   services.samba = {
@@ -54,7 +66,7 @@
         "force user" = "nas";
         "force group" = "nas";
         "comment" = "Main data storage";
-      };
+      } // appleCompat;
 
       # 缓存共享（临时/高速存储）
       cache = {
@@ -67,7 +79,7 @@
         "force user" = "nas";
         "force group" = "nas";
         "comment" = "Cache storage (SSD)";
-      };
+      } // appleCompat;
 
       # 备份共享
       backup = {
@@ -80,7 +92,7 @@
         "force user" = "nas";
         "force group" = "nas";
         "comment" = "Backup storage";
-      };
+      } // appleCompat;
     };
 
     # 启用 WINS 支持（可选）
