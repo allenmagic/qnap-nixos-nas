@@ -48,17 +48,20 @@
                   # 图标前缀：si=simple-icons sh=selfh.st di=dashboard-icons mdi=Material。
                   # 下面每个都实测过对应 CDN 返回 200，不是照名字猜的——
                   # gonic 与 WebDAV 在图库里都没有专用图标，所以用泛用图标代替。
+                  #
+                  # 不设 same-tab：该项默认 false，模板在 !SameTab 时加 target="_blank"，
+                  # 也就是默认在新页签打开——从面板点进各服务后还想回面板，所以保持默认。
                   sites = [
                     # 内网地址：Glance 自身走公网访问时这些链接点不开，
                     # 需要时再补一组走 Cloudflare 子域名的「公网」链接。
-                    { title = "Glance"; url = "http://192.168.10.2:8080"; icon = "sh:glance"; alt-status-codes = [ 302 303 ]; same-tab = true; }
-                    { title = "qBittorrent"; url = "http://192.168.10.2:8081"; icon = "si:qbittorrent"; same-tab = true; }
-                    { title = "AriaNg"; url = "http://192.168.10.2:6880"; icon = "sh:aria2"; same-tab = true; }
-                    { title = "Feishin"; url = "http://192.168.10.2:9180"; icon = "si:musicbrainz"; same-tab = true; }
-                    { title = "gonic"; url = "http://192.168.10.2:4533"; icon = "mdi:music-circle"; alt-status-codes = [ 302 303 ]; same-tab = true; }
-                    { title = "Syncthing"; url = "http://192.168.10.2:8384"; icon = "si:syncthing"; same-tab = true; }
-                    { title = "Beszel"; url = "http://192.168.10.2:8090"; icon = "sh:beszel"; same-tab = true; }
-                    { title = "WebDAV"; url = "http://192.168.10.2:4918"; icon = "mdi:folder-network"; alt-status-codes = [ 401 ]; same-tab = true; }
+                    { title = "Glance"; url = "http://192.168.10.2:8080"; icon = "sh:glance"; alt-status-codes = [ 302 303 ]; }
+                    { title = "qBittorrent"; url = "http://192.168.10.2:8081"; icon = "si:qbittorrent"; }
+                    { title = "AriaNg"; url = "http://192.168.10.2:6880"; icon = "sh:aria2"; }
+                    { title = "Feishin"; url = "http://192.168.10.2:9180"; icon = "si:musicbrainz"; }
+                    { title = "gonic"; url = "http://192.168.10.2:4533"; icon = "mdi:music-circle"; alt-status-codes = [ 302 303 ]; }
+                    { title = "Syncthing"; url = "http://192.168.10.2:8384"; icon = "si:syncthing"; }
+                    { title = "Beszel"; url = "http://192.168.10.2:8090"; icon = "sh:beszel"; }
+                    { title = "WebDAV"; url = "http://192.168.10.2:4918"; icon = "mdi:folder-network"; alt-status-codes = [ 401 ]; }
                   ];
                 }
                 # 盯 router-image 的 CI 发布：它每次出新镜像都会打 release tag，
