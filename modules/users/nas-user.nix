@@ -72,16 +72,27 @@
   # tmpfiles 不修改挂载点自身，上面 d /srv/{data,cache,backup} 的 nas:storage
   # 对挂载后的根无效（实际是 root:root）→ Samba(force user=nas) 在共享根写不了。
   # 挂载完成后补一次 chown。
+  #
+  # partOf：挂载单元被重挂/重启时跟着重跑。只有 after/requires 的话服务一生只跑
+  # 一次，挂载后来变了它不会补。脚本里的 mountpoint 断言是配套的兜底——未挂载时
+  # chown 会打在**被挂载遮蔽的底层目录**上，看起来成功、挂载一上来就失效。
   systemd.services.srv-mount-owner = {
     description = "修正 /srv 挂载点属主（tmpfiles 不覆盖挂载点）";
     wantedBy = [ "multi-user.target" ];
     after = [ "srv-data.mount" "srv-cache.mount" "srv-backup.mount" ];
     requires = [ "srv-data.mount" "srv-cache.mount" "srv-backup.mount" ];
+    partOf = [ "srv-data.mount" "srv-cache.mount" "srv-backup.mount" ];
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
     };
     script = ''
+      for d in /srv/data /srv/cache /srv/backup; do
+        ${pkgs.util-linux}/bin/mountpoint -q "$d" || {
+          echo "$d 未挂载，拒绝 chown（会打在遮蔽的底层目录上）" >&2
+          exit 1
+        }
+      done
       ${pkgs.coreutils}/bin/chown nas:storage /srv/data /srv/cache /srv/backup
       ${pkgs.coreutils}/bin/chmod 0755 /srv/data /srv/cache /srv/backup
     '';
