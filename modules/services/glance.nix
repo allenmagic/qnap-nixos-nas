@@ -61,6 +61,25 @@
                     { title = "WebDAV"; url = "http://192.168.10.2:4918"; icon = "mdi:folder-network"; alt-status-codes = [ 401 ]; same-tab = true; }
                   ];
                 }
+                # 盯 router-image 的 CI 发布：它每次出新镜像都会打 release tag，
+                # 看到新的就该在 NAS 上跑 nix flake update 了。
+                # 你自己的另两个仓库（qnap-nixos-nas / yunshu-nix）目前是
+                # 0 release、0 tag，列进来只会显示空白，所以先不放。
+                # 这个 widget 也能追上游项目（如 glanceapp/glance）——想加说一声。
+                {
+                  type = "releases";
+                  title = "router-image 发布";
+                  show-source-icon = true;
+                  repositories = [ "allenmagic/router-image" ];
+                  collapse-after = 3;
+                }
+              ];
+            }
+            # small 列固定 300px，full 列吃掉剩余宽度；每页最多 3 列且必须有
+            # 1~2 个 full。把紧凑卡片放侧栏、服务面板占主区，不再清一色竖排。
+            {
+              size = "small";
+              widgets = [
                 { type = "clock"; }
                 { type = "weather"; location = "Beijing"; }
                 { type = "server-stats"; servers = [ { type = "local"; name = "NAS"; } ]; }
