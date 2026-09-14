@@ -132,6 +132,15 @@
         mode = "0400";
       };
 
+      # OpenList（网盘聚合）管理员 admin 的密码（明文）。services/openlist.nix
+      # 的 ExecStartPre 用 `OpenList admin set` 写进它的数据库；值没变则不重设
+      # （admin set 会让已登录会话失效）。owner 必须是 nas：ExecStartPre 以
+      # 服务用户身份执行，要读得到。
+      openlist-admin-password = {
+        owner = "nas";
+        mode = "0400";
+      };
+
       # aria2 JSON-RPC 密钥（明文随机串）。由 services.aria2 的 rpcSecretFile
       # 经 systemd LoadCredential 读取（PID 1 以 root 读，故 owner=root）。
       # AriaNg 首次打开时填这个值即可。

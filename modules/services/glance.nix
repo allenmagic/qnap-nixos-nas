@@ -57,6 +57,8 @@
                     { title = "Glance"; url = "http://192.168.10.2:8080"; icon = "sh:glance"; alt-status-codes = [ 302 303 ]; }
                     { title = "qBittorrent"; url = "http://192.168.10.2:8081"; icon = "si:qbittorrent"; }
                     { title = "AriaNg"; url = "http://192.168.10.2:6880"; icon = "sh:aria2"; }
+                    # OpenList 没有自己的 simple-icons 图标（404），借用同源的 alist
+                    { title = "OpenList"; url = "http://192.168.10.2:5244"; icon = "si:alist"; }
                     { title = "Feishin"; url = "http://192.168.10.2:9180"; icon = "si:musicbrainz"; }
                     { title = "gonic"; url = "http://192.168.10.2:4533"; icon = "mdi:music-circle"; alt-status-codes = [ 302 303 ]; }
                     { title = "Syncthing"; url = "http://192.168.10.2:8384"; icon = "si:syncthing"; }

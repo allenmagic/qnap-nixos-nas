@@ -43,6 +43,7 @@
           6881    # qBittorrent BT 监听端口（TCP；UDP 见下）
           6800    # aria2 JSON-RPC（AriaNg 页面从浏览器直连它）
           6880    # AriaNg 静态页（nginx）
+          5244    # OpenList Web UI / WebDAV（services/openlist.nix）
         ];
         allowedUDPPorts = [
           137 138 # Samba (NetBIOS)
