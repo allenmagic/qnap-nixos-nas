@@ -23,7 +23,7 @@
     os = "gentoo";
 
     cpu = 0;                 # isolcpus 独占核：vcpu0 pin 到此核，宿主不用
-    vcpus = 2;               # 1 独占 + 1 动态调度
+    vcpus = 4;               # 1 独占 + 3 动态调度
     mem = 256;               # guest 内存上限 MB（全量服务含 tailscale/cloudflared ~160M，256 足够）
     initialBalloonMem = 0;   # 不启动充气（充气会从 mem 扣可用内存；宿主侧回收未实现）
 
