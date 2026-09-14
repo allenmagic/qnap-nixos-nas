@@ -83,7 +83,11 @@ in
       ProtectKernelModules = true;
       ProtectKernelTunables = true;
       ProtectSystem = "strict";
-      ReadWritePaths = [ dataDir "-${downloadDir}" ];
+      # 只列 downloadDir：stateDir 由 StateDirectory= 负责（systemd 文档明确它
+      # 排除在 ProtectSystem= 之外）。⚠️ 列还没被创建的路径会让服务起不来——
+      # 命名空间在 ExecStartPre 之前就装好了，路径不存在直接 226/NAMESPACE。
+      # 这里 data 子目录是 init 脚本现建的，所以必须带 "-" 前缀或干脆别列。
+      ReadWritePaths = [ "-${downloadDir}" ];
       RestrictRealtime = true;
       SystemCallArchitectures = "native";
     };
