@@ -1,16 +1,16 @@
 { config, pkgs, lib, ... }:
 
 # ============================================================================
-# Navidrome —— 2026-09 被 gonic 取代（常驻内存 900MB+/峰值 1.1GB 过高）。
+# Navidrome —— 当前启用的音乐服务端（2026-09-14 从 gonic 回退）。
+# 回退原因：gonic 功能支持不足（客户端/API 兼容性、元数据与播放列表等）。
+# 代价：常驻内存高于 gonic（曾测 900MB+ / 峰值 1.1GB）。
 #
-# 本文件**刻意不在 services/default.nix 里 import**，仅作回退保留。
-#
-# 回退方法：把 default.nix 里的 ./music.nix 换成 ./music-navidrome.nix
+# 切回 gonic：把 default.nix 里的 ./music-navidrome.nix 换成 ./music.nix
 # （feishin.nix 保持不动，两种服务端都用同一个前端）。
 #
-# ⚠️ 注意：Navidrome 的 /var/lib/navidrome 数据（105MB SQLite）与 gonic 的
-# 数据库不兼容，切换回去会重新扫描；反之亦然。播放列表/收藏/播放次数在两者
-# 之间无法迁移。切换后 4533 端口仍由同一个服务持有，客户端只需改服务器类型
+# ⚠️ 注意：Navidrome 的 /var/lib/navidrome 数据与 gonic 的数据库不兼容，
+# 切换后会重新扫描；反之亦然。播放列表/收藏/播放次数在两者之间无法迁移。
+# 切换后 4533 端口仍由同一个服务持有，客户端只需改服务器类型
 # （navidrome ↔ subsonic）。
 # ============================================================================
 

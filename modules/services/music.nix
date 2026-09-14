@@ -39,11 +39,13 @@ let
 in
 {
   # ===== Gonic 音乐服务端 =====
-  # 2026-09 替代 Navidrome（后者常驻 900MB+ / 峰值 1.1GB 内存，7.5GB 的机器上过高）。
-  # 配置项对照：https://github.com/sentriz/gonic#configuration-options
+  # 本文件**刻意不在 services/default.nix 里 import**，仅作保留。
+  # 2026-09-14：gonic 功能支持不足，回退到 Navidrome（./music-navidrome.nix）。
   #
-  # ⚠️ Navidrome 配置已保留在 ./music-navidrome.nix（不 import），需要回退时
-  #    把 services/default.nix 里的 ./music.nix 换成 ./music-navidrome.nix。
+  # 恢复方法：把 default.nix 里的 ./music-navidrome.nix 换成 ./music.nix。
+  # ⚠️ 两者的数据库互不兼容（gonic 的 /var/lib/gonic 与 Navidrome 的
+  #    /var/lib/navidrome），切换后会重新扫描；播放列表/收藏无法迁移。
+  # 配置项对照：https://github.com/sentriz/gonic#configuration-options
   services.gonic = {
     enable = true;
     package = gonicSlim;

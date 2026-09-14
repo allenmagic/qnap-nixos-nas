@@ -40,14 +40,14 @@
                 # 正好解决「记不住端口 / 不知道还活着没」。
                 #
                 # alt-status-codes 是实测值，不是猜的：Glance 自身(8080) 与
-                # gonic(4533) 探测返回 303（重定向到登录页），WebDAV(4918) 返回
+                # 音乐服务端(4533) 探测返回 303（重定向到登录页），WebDAV(4918) 返回
                 # 401，不列进来会被误判成「挂了」。
                 {
                   type = "monitor";
                   title = "NAS 服务";
                   # 图标前缀：si=simple-icons sh=selfh.st di=dashboard-icons mdi=Material。
                   # 下面每个都实测过对应 CDN 返回 200，不是照名字猜的——
-                  # gonic 与 WebDAV 在图库里都没有专用图标，所以用泛用图标代替。
+                  # 音乐服务端与 WebDAV 在图库里都没有专用图标，所以用泛用图标代替。
                   #
                   # 不设 same-tab：该项默认 false，模板在 !SameTab 时加 target="_blank"，
                   # 也就是默认在新页签打开——从面板点进各服务后还想回面板，所以保持默认。
@@ -60,7 +60,7 @@
                     # OpenList 没有自己的 simple-icons 图标（404），借用同源的 alist
                     { title = "OpenList"; url = "http://192.168.10.2:5244"; icon = "si:alist"; }
                     { title = "Feishin"; url = "http://192.168.10.2:9180"; icon = "si:musicbrainz"; }
-                    { title = "gonic"; url = "http://192.168.10.2:4533"; icon = "mdi:music-circle"; alt-status-codes = [ 302 303 ]; }
+                    { title = "Navidrome"; url = "http://192.168.10.2:4533"; icon = "mdi:music-circle"; alt-status-codes = [ 302 303 ]; }
                     { title = "Syncthing"; url = "http://192.168.10.2:8384"; icon = "si:syncthing"; }
                     { title = "Beszel"; url = "http://192.168.10.2:8090"; icon = "sh:beszel"; }
                     { title = "WebDAV"; url = "http://192.168.10.2:4918"; icon = "mdi:folder-network"; alt-status-codes = [ 401 ]; }

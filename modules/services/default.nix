@@ -5,10 +5,13 @@
     ./samba.nix
     ./nfs.nix
     ./syncthing.nix
-    # 音乐服务端：gonic（低内存）。前端 feishin 独立成文件，两种服务端共用。
-    # 回退到 Navidrome：把下面这行换成 ./music-navidrome.nix
-    #                 （注意两者的数据库互不兼容，切换后会重新扫描）
-    ./music.nix
+    # 音乐服务端：Navidrome（2026-09-14 从 gonic 回退，gonic 功能支持不足）。
+    # 前端 feishin 独立成文件，两种服务端共用。
+    # 切回 gonic：把下面这行换成 ./music.nix
+    #            （注意两者的数据库互不兼容，切换后会重新扫描）
+    ./music-navidrome.nix
+    # ./music.nix   # 剔除（不引用）：gonic 配置保留在 services/music.nix，
+    #               # 需要恢复时取消注释，并屏蔽上面的 ./music-navidrome.nix
     ./feishin.nix
     ./beszel.nix
     ./glance.nix
