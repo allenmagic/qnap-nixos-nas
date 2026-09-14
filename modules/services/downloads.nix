@@ -75,7 +75,13 @@ in
 
   # 模块自带的 ExecStartPre 把 store 里的配置拷进可写目录，这里追加第二个覆盖密码占位符。
   # sops 里 qbittorrent-password 的 owner 必须是 nas，否则服务用户读不到。
-  systemd.services.qbittorrent.serviceConfig.ExecStartPre = lib.mkAfter [ (lib.getExe qbSetPassword) ];
+  systemd.services.qbittorrent.serviceConfig = {
+    ExecStartPre = lib.mkAfter [ (lib.getExe qbSetPassword) ];
+
+    # 运行中 qBittorrent 自己重写 conf 时按 umask 落盘，会把 install 的 600 放宽成 644
+    # （conf 里有 WebUI 口令的 PBKDF2 哈希）
+    UMask = "0077";
+  };
 
   # ===== aria2：HTTP / FTP 直链 =====
   # 注意：模块自建 aria2 系统用户并用 tmpfiles 把 settings.dir chown 成 aria2:aria2，
