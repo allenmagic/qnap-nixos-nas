@@ -33,8 +33,8 @@ sops secrets/secrets.yaml                         # 编辑加密密钥（需要 
 
 ### 网络拓扑（关键设计）
 
-- 双网口各绑定一个桥：`eno1 → br-wan`、`eno2 → br-lan`（systemd-networkd 管理，`modules/network/bridges.nix`）。
-- **宿主机在 br-wan 上不配置 IP**——WAN（DHCP/NAT/防火墙）完全由 Alpine 路由 VM 负责。宿主机只在 br-lan 上有静态 IP `192.168.10.2/24`，网关指向 VM 的 `192.168.10.1`。
+- 双网口各绑定一个桥：`enp2s0 → br-wan`、`enp3s0 → br-lan`（systemd-networkd 管理，`modules/network/bridges.nix`）。接口名由 udev 可预测命名给出，随 PCI 位置固定，实机确认为 `enp2s0`/`enp3s0`（`enp2s0`=WAN，`enp3s0`=LAN）。
+- **宿主机在 br-wan 上不配置 IP**——WAN（DHCP/NAT/防火墙）完全由路由 VM 负责。宿主机只在 br-lan 上有静态 IP `192.168.10.2/24`，**网关与 DNS 都指向浮动网关 `192.168.10.254`**（yunshu 容器 VRRP MASTER 持有，容器不可用时路由 VM BACKUP 接管）。`192.168.10.1` 是路由 VM 自己的 LAN 地址，不是宿主机的网关。
 - 防火墙只在 br-lan 接口开放服务端口（`modules/network/default.nix`），端口列表对应 SSH/Samba/NFS/Syncthing/WebDAV/Glance/Navidrome/Cockpit。
 
 ### Alpine 路由 VM
